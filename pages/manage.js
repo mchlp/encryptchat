@@ -1,12 +1,12 @@
 import React from 'react';
 import PageWrapper from '../templates/PageWrapper';
 
-const Home = () => (
-    <PageWrapper page='home'>
+const Manage = () => (
+    <PageWrapper page='manage'>
         <div>
-            Test! Test! Body Home Page!
+            Test! Test! Manage!
         </div>
     </PageWrapper>
 );
 
-export default Home;
+export default Manage;

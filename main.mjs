@@ -11,6 +11,7 @@ const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
     const server = express();
+    server.use(express.json());
 
     server.use('/api', api);
 
@@ -18,9 +19,9 @@ app.prepare().then(() => {
         return handle(req, res);
     });
 
-    server.listen(config.port, (err) => {
+    server.listen(config['api-port'], 'localhost', (err) => {
         if (err) throw err;
-        console.log('Listening on port ' + config.port);
+        console.log('Private API listening on localhost:' + config['api-port']);
     });
 }).catch((err) => {
     console.error(err.stack);

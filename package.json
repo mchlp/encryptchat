@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "nodemon ./server.mjs",
+    "dev": "nodemon ./main.mjs",
     "build": "next build",
     "start": "next start"
   },
@@ -11,7 +11,8 @@
     "express": "^4.17.1",
     "next": "9.1.5",
     "react": "16.12.0",
-    "react-dom": "16.12.0"
+    "react-dom": "16.12.0",
+    "socket.io": "^2.3.0"
   },
   "devDependencies": {
     "eslint": "^6.7.2",

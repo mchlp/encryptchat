@@ -4,8 +4,8 @@ import Navbar from './Navbar';
 
 const PageWrapper = (props) => (
     <div>
-        <DefaultHeader title={props.title} />
-        <Navbar />
+        <DefaultHeader page={props.page} />
+        <Navbar page={props.page} />
         {props.children}
     </div>
 );
