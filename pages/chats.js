@@ -1,12 +1,11 @@
 import React from 'react';
 import PageWrapper from '../templates/PageWrapper';
-
-const Home = () => (
-    <PageWrapper title='Home'>
+const Chats = () => (
+    <PageWrapper title='Chats'>
         <div>
-            Test! Test! Body Home Page!
+            Chat List!!
         </div>
     </PageWrapper>
 );
 
-export default Home;
+export default Chats;
