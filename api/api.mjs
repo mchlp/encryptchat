@@ -2,7 +2,7 @@ import express from 'express';
 import manage from './manage.mjs';
 const router = express.Router();
 
-const init = async (socket) => {
+const init = async () => {
     await manage.init();
 };
 

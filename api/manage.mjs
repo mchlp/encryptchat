@@ -2,7 +2,7 @@ import express from 'express';
 import util from './util.mjs';
 import crypto from 'crypto';
 import fs from 'fs';
-import uuidv5 from 'uuid/v5';
+import uuidv5 from 'uuidv5';
 import publicServer from './server/publicServer.mjs';
 import axios from 'axios';
 
@@ -15,7 +15,7 @@ manageData.keysInitialized = false;
 manageData.passphraseSet = false;
 
 const init = async () => {
-    if (fs.existsSync('./api/data/key' && fs.existsSync('./api/data/key.pub'))) {
+    if (fs.existsSync('./api/data/key') && fs.existsSync('./api/data/key.pub')) {
         manageData.keyPair = {
             publicKey: fs.readFileSync('./api/data/key.pub', {
                 encoding: 'utf8'
@@ -74,7 +74,8 @@ const genKeys = (passphrase) => {
         encoding: 'utf8',
         mode: 0o600
     });
-    return manageData.keyPair.publicKey;
+    manageData.keysInitialized = true;
+    manageData.passphraseSet = true;
 };
 
 const checkKeysAndPassphraseSet = () => {
@@ -140,10 +141,15 @@ const addToHistory = (userId, event) => {
     updateHistoryFile();
 };
 
+const incomingHandler = () => {
+    return;
+};
+
 router.get('/', (req, res) => {
     res.send('EncryptChat API - Manage');
 });
 
+/*
 router.post('/sendMessage', async (req, res) => {
     res.send(await util.resWrapper(async () => {
         const cipherText = encrypt(req.body.plaintext, manageData.keyPair.privateKey, manageData.contacts[req.body.receiverId].key);
@@ -156,8 +162,19 @@ router.post('/sendMessage', async (req, res) => {
             });
     }));
 });
+*/
 
-router.post('/decrypt');
+router.get('/status', async (req, res) => {
+    res.send(await util.resWrapper(() => {
+        if (!manageData.keysInitialized) {
+            return 'initialize-keys';
+        } else if (!manageData.passphraseSet) {
+            return 'set-passphrase';
+        } else {
+            return 'ready';
+        }
+    }));
+});
 
 router.post('/start', async (req, res) => {
     res.send(await util.resWrapper(async () => { return await publicServer.start(req.body.port, incomingHandler); }));
@@ -167,4 +184,6 @@ router.post('/stop', async (req, res) => {
     res.send(await util.resWrapper(publicServer.stop));
 });
 
-export default {init, router};
+
+
+export default { init, router };

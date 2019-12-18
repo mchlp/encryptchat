@@ -2,7 +2,7 @@ import express from 'express';
 import next from 'next';
 import fs from 'fs';
 import api from './api/api.mjs';
-import socket from ' ./api/socket.mjs';
+import socket from './api/socket.mjs';
 import socketIO from 'socket.io';
 
 const config = JSON.parse(fs.readFileSync('./config.json', 'utf8'));
@@ -31,7 +31,7 @@ app.prepare().then(async () => {
 
     const io = socketIO(server);
     socket.init(io);
-    
+
 }).catch((err) => {
     console.error(err.stack);
     process.exit(1);
