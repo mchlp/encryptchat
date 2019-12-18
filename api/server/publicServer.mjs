@@ -5,7 +5,7 @@ const publicServer = {};
 
 publicServer.counter = 1;
 publicServer.port;
-publicServer.start = (port) => {
+publicServer.start = (port, handlerFunc) => {
     return new Promise((resolve, reject) => {
         if (!port) {
             throw Error('No port specified.');
@@ -14,8 +14,9 @@ publicServer.start = (port) => {
             throw Error('Public Server already listening.');
         }
         try {
+            publicServerHandler.init(handlerFunc);
             publicServer.app = express();
-            publicServer.app.use('/', publicServerHandler);
+            publicServer.app.use('/', publicServerHandler.router);
             publicServer.port = port;
             publicServer.httpServer = publicServer.app.listen(port, (err) => {
                 if (err) reject(err);
