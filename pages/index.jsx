@@ -3,6 +3,7 @@ import axios from 'axios';
 import PageWrapper from '../templates/PageWrapper';
 import NewPassphrase from '../components/NewPassphrase';
 import EnterPassphrase from '../components/EnterPassphrase';
+import ChatPage from '../components/ChatPage';
 
 
 class Home extends React.Component {
@@ -39,6 +40,16 @@ class Home extends React.Component {
         } else if (this.state.status === 'set-passphrase') {
             Component = (
                 <EnterPassphrase />
+            );
+        } else if (this.state.status === 'ready') {
+            Component = (
+                <ChatPage />
+            );
+        } else {
+            Component = (
+                <div className='m-3'>
+                    An unknown error has occured. Please try again later.
+                </div>
             );
         }
         return (

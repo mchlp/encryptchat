@@ -6,7 +6,7 @@ const DefaultHeader = (props) => (
     <div>
         <Head>
             <title>{pageList[props.page].title}</title>
-            <link rel="icon" href="/favicon.ico" />
+            <link rel='icon' href='/favicon.ico' />
             <script src='./jquery-3.4.1.slim.min.js' />
             <script src='./bootstrap.bundle.min.js' />
             <link rel='stylesheet' type='text/css' href='./bootstrap.min.css' />

@@ -31,6 +31,14 @@ const init = async () => {
 const setPassphrase = (passphrase) => {
     if (manageData.keysInitialized) {
         manageData.passphrase = passphrase;
+
+        crypto.privateEncrypt({
+            key: manageData.keyPair.privateKey,
+            passphrase: manageData.passphrase
+        }, Buffer.from('testdata', 'utf-8'));
+
+        manageData.passphraseSet = true;
+
         if (fs.existsSync('./api/data/contacts')) {
             manageData.contacts = JSON.parse(fs.readFileSync('./api/data/contacts'));
         } else {
@@ -38,13 +46,17 @@ const setPassphrase = (passphrase) => {
             updateContactsFile();
         }
         if (fs.existsSync('./api/data/history')) {
-            const encryptedHistory = JSON.parse(fs.readFileSync('./api/data/history'));
-            manageData.history = crypto.privateDecrypt(manageData.keyPair.privateKey, encryptedHistory);
+            const encryptedHistory = fs.readFileSync('./api/data/history', 'utf-8');
+            const decipheredtext = crypto.privateDecrypt({
+                key: manageData.keyPair.privateKey,
+                passphrase: manageData.passphrase
+            }, Buffer.from(encryptedHistory, 'base64')).toString('utf-8');
+            console.log(decipheredtext);
+            manageData.history = JSON.parse(decipheredtext);
         } else {
             manageData.history = {};
             updateHistoryFile();
         }
-        manageData.passphraseSet = true;
     } else {
         throw Error('Public and private keys not initialized.');
     }
@@ -75,7 +87,7 @@ const genKeys = (passphrase) => {
         mode: 0o600
     });
     manageData.keysInitialized = true;
-    manageData.passphraseSet = true;
+    setPassphrase(passphrase);
 };
 
 const checkKeysAndPassphraseSet = () => {
@@ -96,20 +108,25 @@ const updateContactsFile = () => {
 
 const updateHistoryFile = () => {
     checkKeysAndPassphraseSet();
-    const encryptedHistory = crypto.privateEncrypt({
-        key: manageData.keyPair.privateKey,
-        passphrase: manageData.passphrase
-    },
-    JSON.stringify(manageData.history));
+    const encryptedHistory = crypto.publicEncrypt(
+        {
+            key: manageData.keyPair.publicKey,
+        },
+        Buffer.from(JSON.stringify(manageData.history), 'utf-8')
+    ).toString('base64');
+    console.log(encryptedHistory);
     fs.writeFileSync('./api/data/history', encryptedHistory, {
-        encoding: 'utf8',
+        encoding: 'utf-8',
         mode: 0o600
     });
 };
 
-const encrypt = (plaintext, mykey, theirkey) => {
+const encrypt = (plaintext, mykey, passphrase, theirkey) => {
     checkKeysAndPassphraseSet();
-    const encrypt1 = crypto.privateEncrypt(mykey, plaintext);
+    const encrypt1 = crypto.privateEncrypt({
+        key: mykey,
+        passphrase
+    }, plaintext);
     const encrypt2 = crypto.publicEncrypt(theirkey, encrypt1);
     return encrypt2;
 };
@@ -182,6 +199,24 @@ router.post('/start', async (req, res) => {
 
 router.post('/stop', async (req, res) => {
     res.send(await util.resWrapper(publicServer.stop));
+});
+
+router.post('/genKeys', async (req, res) => {
+    res.send(await util.resWrapper(() => {
+        if (!req.body.passphrase) {
+            throw Error('No passphrase specified.');
+        }
+        genKeys(req.body.passphrase);
+    }));
+});
+
+router.post('/setPassphrase', async (req, res) => {
+    res.send(await util.resWrapper(() => {
+        if (!req.body.passphrase) {
+            throw Error('No passphrase specified.');
+        }
+        setPassphrase(req.body.passphrase);
+    }));
 });
 
 
