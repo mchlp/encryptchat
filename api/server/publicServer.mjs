@@ -35,10 +35,9 @@ publicServer.stop = () => {
     return new Promise((resolve, reject) => {
         if (!publicServer.httpServer) {
             throw Error('Public Server is not open.');
-        } else {
-            if (publicServer.httpServer.listening) {
-                throw Error('Public Server already listening.');
-            }
+        }
+        if (!publicServer.httpServer.listening) {
+            throw Error('Public Server is not listening.');
         }
         publicServer.httpServer.close((err) => {
             if (err) reject(err);

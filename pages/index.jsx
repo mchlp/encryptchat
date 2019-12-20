@@ -30,16 +30,16 @@ class Home extends React.Component {
         if (this.state.status === 'loading') {
             Component = (
                 <div className='m-3'>
-                    <h3>Loading...</h3>
+                    <h1>Loading...</h1>
                 </div>
             );
         } else if (this.state.status === 'initialize-keys') {
             Component = (
-                <NewPassphrase />
+                <NewPassphrase getNewStatus={this.updateStatus} />
             );
         } else if (this.state.status === 'set-passphrase') {
             Component = (
-                <EnterPassphrase />
+                <EnterPassphrase getNewStatus={this.updateStatus} />
             );
         } else if (this.state.status === 'ready') {
             Component = (

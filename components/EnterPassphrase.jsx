@@ -1,7 +1,6 @@
 import React from 'react';
 import LoadingButton from '../components/LoadingButton';
-import axios from 'axios';
-import router from 'next/router';
+import Axios from 'axios';
 
 class EnterPassphrase extends React.Component {
 
@@ -25,18 +24,17 @@ class EnterPassphrase extends React.Component {
             submitBtnLoading: true
         });
         const passphrase = document.getElementById('passphrase-input').value;
-        const res = await axios.post('/api/manage/setPassphrase', { passphrase });
-        console.log(res.data);
+        const res = await Axios.post('/api/manage/setPassphrase', { passphrase });
         if (res.data.success) {
             this.setState({
                 submitBtnLoading: false
             });
-            router.push('/');
+            this.props.getNewStatus();
         } else {
             this.setState({
                 alert: {
                     show: true,
-                    text: 'The passphrase you entered does not match the one for your keys.'
+                    text: res.data.error
                 },
                 submitBtnLoading: false
             });

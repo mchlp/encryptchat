@@ -4,15 +4,16 @@ import crypto from 'crypto';
 import fs from 'fs';
 import uuidv5 from 'uuidv5';
 import publicServer from './server/publicServer.mjs';
-import axios from 'axios';
 
-const CONTACT_UUID_NAMESPACE = 'ENCRYPT_CHAT_CONTACT_UUID_NAMESPACE';
+const CONTACT_UUID_NAMESPACE = uuidv5('null', 'ENCRYPT_CHAT_CONTACT_UUID_NAMESPACE', true);
 
 const router = express.Router();
 const manageData = {};
 
 manageData.keysInitialized = false;
 manageData.passphraseSet = false;
+manageData.temp = {};
+manageData.data = null;
 
 const init = async () => {
     if (fs.existsSync('./api/data/key') && fs.existsSync('./api/data/key.pub')) {
@@ -28,54 +29,66 @@ const init = async () => {
     }
 };
 
-const setPassphrase = (passphrase) => {
+const setPassphrase = async (passphrase) => {
     if (manageData.keysInitialized) {
         manageData.passphrase = passphrase;
 
-        crypto.privateEncrypt({
-            key: manageData.keyPair.privateKey,
-            passphrase: manageData.passphrase
-        }, Buffer.from('testdata', 'utf-8'));
-
         manageData.passphraseSet = true;
 
-        if (fs.existsSync('./api/data/contacts')) {
-            manageData.contacts = JSON.parse(fs.readFileSync('./api/data/contacts'));
+        if (fs.existsSync('./api/data/aes')) {
+            const encryptedAESKey = fs.readFileSync('./api/data/aes', 'utf-8');
+            try {
+                manageData.aesKey = crypto.privateDecrypt({
+                    key: manageData.keyPair.privateKey,
+                    passphrase: manageData.passphrase
+                }, Buffer.from(encryptedAESKey, 'base64')).toString('utf-8');
+            } catch (err) {
+                throw Error('Passphrase does not match.');
+            }
         } else {
-            manageData.contacts = {};
-            updateContactsFile();
+            manageData.aesKey = util.aes.genKey();
+            const encryptedAESKey = crypto.publicEncrypt(manageData.keyPair.publicKey, Buffer.from(manageData.aesKey, 'utf-8')).toString('base64');
+            fs.writeFileSync('./api/data/aes', encryptedAESKey, {
+                encoding: 'utf8',
+                mode: 0o600
+            });
         }
-        if (fs.existsSync('./api/data/history')) {
-            const encryptedHistory = fs.readFileSync('./api/data/history', 'utf-8');
-            const decipheredtext = crypto.privateDecrypt({
-                key: manageData.keyPair.privateKey,
-                passphrase: manageData.passphrase
-            }, Buffer.from(encryptedHistory, 'base64')).toString('utf-8');
+
+        if (fs.existsSync('./api/data/data')) {
+            const encryptedHistory = fs.readFileSync('./api/data/data', 'utf-8');
+            const decipheredtext = util.aes.decrypt(manageData.aesKey, encryptedHistory);
             console.log(decipheredtext);
-            manageData.history = JSON.parse(decipheredtext);
+            manageData.data = JSON.parse(decipheredtext);
         } else {
-            manageData.history = {};
-            updateHistoryFile();
+            manageData.data = {
+                contacts: {},
+                history: {},
+                port: manageData.temp.port,
+                name: manageData.temp.name
+            };
+            updateDataFile();
+        }
+        if (!(publicServer.httpServer && publicServer.httpServer.listening)) {
+            await publicServer.start(manageData.data.port, incomingHandler);
         }
     } else {
         throw Error('Public and private keys not initialized.');
     }
 };
 
-const genKeys = (passphrase) => {
-    const keyPair = crypto.generateKeyPairSync('rsa', {
-        modulusLength: 4096,
-        publicKeyEncoding: {
-            type: 'spki',
-            format: 'pem'
-        },
-        privateKeyEncoding: {
-            type: 'pkcs8',
-            format: 'pem',
-            cipher: 'aes-256-cbc',
-            passphrase
-        }
-    });
+const genKeys = async (passphrase, port, name) => {
+    if (!passphrase) {
+        throw Error('No passphrase specified.');
+    }
+    if (!port) {
+        throw Error('Port must be specified.');
+    }
+    if (!name) {
+        throw Error('A name must be provided.');
+    }
+
+    const keyPair = util.rsa.genKeys(passphrase);
+
     manageData.keyPair = keyPair;
     manageData.passphrase = passphrase;
     fs.writeFileSync('./api/data/key.pub', manageData.keyPair.publicKey, {
@@ -87,7 +100,9 @@ const genKeys = (passphrase) => {
         mode: 0o600
     });
     manageData.keysInitialized = true;
-    setPassphrase(passphrase);
+    manageData.temp.port = port;
+    manageData.temp.name = name;
+    await setPassphrase(passphrase);
 };
 
 const checkKeysAndPassphraseSet = () => {
@@ -99,23 +114,10 @@ const checkKeysAndPassphraseSet = () => {
     }
 };
 
-const updateContactsFile = () => {
-    fs.writeFileSync('./api/data/contacts', JSON.stringify(manageData.contacts), {
-        encoding: 'utf8',
-        mode: 0o600
-    });
-};
-
-const updateHistoryFile = () => {
+const updateDataFile = () => {
     checkKeysAndPassphraseSet();
-    const encryptedHistory = crypto.publicEncrypt(
-        {
-            key: manageData.keyPair.publicKey,
-        },
-        Buffer.from(JSON.stringify(manageData.history), 'utf-8')
-    ).toString('base64');
-    console.log(encryptedHistory);
-    fs.writeFileSync('./api/data/history', encryptedHistory, {
+    const encryptedData = util.aes.encrypt(manageData.aesKey, JSON.stringify(manageData.data));
+    fs.writeFileSync('./api/data/data', encryptedData, {
         encoding: 'utf-8',
         mode: 0o600
     });
@@ -140,25 +142,35 @@ const decrypt = (ciphertext, mykey, theirkey) => {
 
 const addContact = (name, key, address) => {
     checkKeysAndPassphraseSet();
-    const userId = uuidv5(name + key + address, CONTACT_UUID_NAMESPACE);
-    manageData.contacts.userId = {
+    if (!name) {
+        throw Error('Name of new contact is required');
+    }
+    if (!key) {
+        throw Error('Key of new contact is required');
+    }
+    if (!address) {
+        throw Error('Address of new contact is required');
+    }
+    const userId = uuidv5(CONTACT_UUID_NAMESPACE, name + key);
+    manageData.data.contacts[userId] = {
         name,
         key,
         address
     };
-    updateContactsFile();
+    updateDataFile();
 };
 
 const addToHistory = (userId, event) => {
     checkKeysAndPassphraseSet();
-    if (!manageData.history.userId) {
-        manageData.history.userId = [];
+    if (!manageData.data.history.userId) {
+        manageData.data.history.userId = [];
     }
-    manageData.history.userId.push(event);
-    updateHistoryFile();
+    manageData.data.history.userId.push(event);
+    updateDataFile();
 };
 
 const incomingHandler = () => {
+    // handle incoming messages from other users.
     return;
 };
 
@@ -193,32 +205,56 @@ router.get('/status', async (req, res) => {
     }));
 });
 
-router.post('/start', async (req, res) => {
-    res.send(await util.resWrapper(async () => { return await publicServer.start(req.body.port, incomingHandler); }));
-});
-
-router.post('/stop', async (req, res) => {
-    res.send(await util.resWrapper(publicServer.stop));
-});
-
 router.post('/genKeys', async (req, res) => {
-    res.send(await util.resWrapper(() => {
-        if (!req.body.passphrase) {
-            throw Error('No passphrase specified.');
-        }
-        genKeys(req.body.passphrase);
+    res.send(await util.resWrapper(async () => {
+        await genKeys(req.body.passphrase, req.body.port, req.body.name);
     }));
 });
 
 router.post('/setPassphrase', async (req, res) => {
-    res.send(await util.resWrapper(() => {
+    res.send(await util.resWrapper(async () => {
         if (!req.body.passphrase) {
             throw Error('No passphrase specified.');
         }
-        setPassphrase(req.body.passphrase);
+        await setPassphrase(req.body.passphrase);
     }));
 });
 
+const func = {};
+func.getData = () => {
+    checkKeysAndPassphraseSet();
+    return manageData.data;
+};
 
+func.getConnectionString = () => {
+    checkKeysAndPassphraseSet();
+    const connectionObj = {
+        publicKey: manageData.keyPair.publicKey,
+        name: manageData.data.name
+    };
+    return Buffer(JSON.stringify(connectionObj)).toString('base64');
+};
 
-export default { init, router };
+func.handleAddContact = async (data) => {
+    if (!data.connectionString) {
+        throw Error('Connection string of new contact required.');
+    }
+    if (!data.url) {
+        throw Error('URL of new contact required.');
+    }
+    const connectionData = JSON.parse(Buffer(data.connectionString, 'base64').toString());
+    console.log(connectionData);
+    try {
+        crypto.publicEncrypt(connectionData.publicKey, Buffer.from('testdata', 'utf-8'));
+    } catch (err) {
+        console.error(err);
+        throw Error('Public key of new contact is not valid.');
+    }
+    addContact(connectionData.name, connectionData.publicKey, data.url);
+};
+
+export default {
+    init,
+    router,
+    func
+};
