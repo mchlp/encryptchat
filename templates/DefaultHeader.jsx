@@ -10,6 +10,7 @@ const DefaultHeader = (props) => (
             <script src='./jquery-3.4.1.slim.min.js' />
             <script src='./bootstrap.bundle.min.js' />
             <link rel='stylesheet' type='text/css' href='./bootstrap.min.css' />
+            <link rel='stylesheet' type='text/css' href='./styles.css' />
         </Head>
     </div>
 );

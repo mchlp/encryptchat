@@ -1,5 +1,5 @@
 import express from 'express';
-import util from 'util';
+import util from '../util.mjs';
 const router = express.Router();
 
 let handlerFunc;
@@ -9,9 +9,8 @@ const init = (func) => {
 };
 
 router.post('/', async (req, res) => {
-    await handlerFunc(req);
-    res.send(await util.resWrapper(() => {
-        return 'received';
+    res.send(await util.resWrapper(async () => {
+        return await handlerFunc(req);
     }));
 });
 

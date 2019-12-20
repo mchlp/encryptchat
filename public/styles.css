@@ -1,0 +1,22 @@
+.full-height {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.full-height-child {
+    flex-grow: 1
+}
+
+.fill-height {
+    height: 100%
+}
+
+.chat-contact-box {
+    background-color: white
+}
+
+.chat-contact-box:hover {
+    background-color: #d1d1d1;
+    cursor: pointer;
+}

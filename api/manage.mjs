@@ -4,6 +4,8 @@ import crypto from 'crypto';
 import fs from 'fs';
 import uuidv5 from 'uuidv5';
 import publicServer from './server/publicServer.mjs';
+import Axios from 'axios';
+import constants from './constants.mjs';
 
 const CONTACT_UUID_NAMESPACE = uuidv5('null', 'ENCRYPT_CHAT_CONTACT_UUID_NAMESPACE', true);
 
@@ -71,6 +73,7 @@ const setPassphrase = async (passphrase) => {
         if (!(publicServer.httpServer && publicServer.httpServer.listening)) {
             await publicServer.start(manageData.data.port, incomingHandler);
         }
+        await initializeContacts();
     } else {
         throw Error('Public and private keys not initialized.');
     }
@@ -140,7 +143,28 @@ const decrypt = (ciphertext, mykey, theirkey) => {
     return decrypt2;
 };
 
-const addContact = (name, key, address) => {
+const heartbeatToContact = async (contactId) => {
+    try {
+        const res = await Axios.post(manageData.data.contacts[contactId].address, {
+            type: constants.publicServer.HEARTBEAT
+        });
+        if (res.data.success) {
+            return true;
+        } else {
+            return false;
+        }
+    } catch (err) {
+        return false;
+    }
+};
+
+const initializeContacts = async () => {
+    for (const contactEntry of Object.entries(manageData.data.contacts)) {
+        manageData.data.contacts[contactEntry[0]].online = await heartbeatToContact(contactEntry[0]);
+    }
+};
+
+const addContact = async (name, key, address, connectionString) => {
     checkKeysAndPassphraseSet();
     if (!name) {
         throw Error('Name of new contact is required');
@@ -155,8 +179,10 @@ const addContact = (name, key, address) => {
     manageData.data.contacts[userId] = {
         name,
         key,
-        address
+        address,
+        connectionString
     };
+    manageData.data.contacts[userId].online = await heartbeatToContact(userId);
     updateDataFile();
 };
 
@@ -169,7 +195,7 @@ const addToHistory = (userId, event) => {
     updateDataFile();
 };
 
-const incomingHandler = () => {
+const incomingHandler = (req) => {
     // handle incoming messages from other users.
     return;
 };
@@ -243,14 +269,13 @@ func.handleAddContact = async (data) => {
         throw Error('URL of new contact required.');
     }
     const connectionData = JSON.parse(Buffer(data.connectionString, 'base64').toString());
-    console.log(connectionData);
     try {
         crypto.publicEncrypt(connectionData.publicKey, Buffer.from('testdata', 'utf-8'));
     } catch (err) {
         console.error(err);
         throw Error('Public key of new contact is not valid.');
     }
-    addContact(connectionData.name, connectionData.publicKey, data.url);
+    await addContact(connectionData.name, connectionData.publicKey, data.url, data.connectionString);
 };
 
 export default {

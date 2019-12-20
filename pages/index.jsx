@@ -54,9 +54,7 @@ class Home extends React.Component {
         }
         return (
             <PageWrapper page='home'>
-                <div>
-                    {Component}
-                </div>
+                {Component}
             </PageWrapper>
         );
     }
