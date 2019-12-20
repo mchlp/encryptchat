@@ -12,13 +12,19 @@ export default class ChatComponent extends Component {
         $('#modify-url-modal').modal('hide');
     }
 
+    sendMessage = (e) => {
+        e.preventDefault();
+        const text = document.getElementById('message-input').value;
+        document.getElementById('message-input').value = '';
+    }
+
     render() {
         return (
             <div className='p-3 fill-height'>
                 <div className='card fill-height'>
                     <div className='card-header'>
                         {
-                            this.props.data ? (
+                            this.props.user ? (
                                 <ul className='list-inline m-0 align-middle'>
                                     <li className='list-inline-item ml-1 align-middle'>
                                         <StatusDot online={this.props.data.online} />
@@ -38,9 +44,22 @@ export default class ChatComponent extends Component {
                     <div className='card-body p-3' style={{ wordBreak: 'break-all' }}>
                         <div>
                             User:
-                            History: {JSON.stringify(this.props.data)}
+                            History: {JSON.stringify(this.props.history)}
                         </div>
                     </div>
+                    {this.props.user ?
+                        <div className='card-footer'>
+                            <form onSubmit={this.sendMessage} autoComplete='off'>
+                                <div className='input-group'>
+                                    <input type='text' className='form-control' id='message-input' />
+                                    <div className='input-group-append'>
+                                        <button type='submit' className='btn btn-secondary'>Send</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        : null
+                    }
                 </div>
 
                 {/* Modify URL Modal */}

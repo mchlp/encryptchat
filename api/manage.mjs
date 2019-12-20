@@ -57,8 +57,8 @@ const setPassphrase = async (passphrase) => {
         }
 
         if (fs.existsSync('./api/data/data')) {
-            const encryptedHistory = fs.readFileSync('./api/data/data', 'utf-8');
-            const decipheredtext = util.aes.decrypt(manageData.aesKey, encryptedHistory);
+            const encryptedData = fs.readFileSync('./api/data/data', 'utf-8');
+            const decipheredtext = util.aes.decrypt(manageData.aesKey, encryptedData);
             console.log(decipheredtext);
             manageData.data = JSON.parse(decipheredtext);
         } else {
@@ -176,23 +176,31 @@ const addContact = async (name, key, address, connectionString) => {
         throw Error('Address of new contact is required');
     }
     const userId = uuidv5(CONTACT_UUID_NAMESPACE, name + key);
-    manageData.data.contacts[userId] = {
-        name,
-        key,
-        address,
-        connectionString
-    };
-    manageData.data.contacts[userId].online = await heartbeatToContact(userId);
-    updateDataFile();
-};
-
-const addToHistory = (userId, event) => {
-    checkKeysAndPassphraseSet();
-    if (!manageData.data.history.userId) {
-        manageData.data.history.userId = [];
+    const contactExists = manageData.data.contacts[userId] ? true : false;
+    if (!contactExists) {
+        manageData.data.contacts[userId] = {
+            name,
+            key,
+            address,
+            connectionString,
+            eventCount: 0,
+        };
+        manageData.data.history[userId] = [];
+        await func.addToHistory(userId, {
+            type: constants.eventTypes.ADD_CONTACT,
+            address
+        });
+    } else {
+        manageData.data.contacts[userId].address = address;
+        await func.addToHistory(userId, {
+            type: constants.eventTypes.UPDATE_ADDRESS,
+            address
+        });
     }
-    manageData.data.history.userId.push(event);
+    const online = await heartbeatToContact(userId);
+    manageData.data.contacts[userId].online = online;
     updateDataFile();
+    return userId;
 };
 
 const incomingHandler = (req) => {
@@ -258,7 +266,7 @@ func.getConnectionString = () => {
         publicKey: manageData.keyPair.publicKey,
         name: manageData.data.name
     };
-    return Buffer(JSON.stringify(connectionObj)).toString('base64');
+    return Buffer.from(JSON.stringify(connectionObj)).toString('base64');
 };
 
 func.handleAddContact = async (data) => {
@@ -268,14 +276,58 @@ func.handleAddContact = async (data) => {
     if (!data.url) {
         throw Error('URL of new contact required.');
     }
-    const connectionData = JSON.parse(Buffer(data.connectionString, 'base64').toString());
+    const connectionData = JSON.parse(Buffer.from(data.connectionString, 'base64').toString());
     try {
         crypto.publicEncrypt(connectionData.publicKey, Buffer.from('testdata', 'utf-8'));
     } catch (err) {
         console.error(err);
         throw Error('Public key of new contact is not valid.');
     }
-    await addContact(connectionData.name, connectionData.publicKey, data.url, data.connectionString);
+    return await addContact(connectionData.name, connectionData.publicKey, data.url, data.connectionString);
+};
+
+func.addToHistory = (userId, event) => {
+    checkKeysAndPassphraseSet();
+    manageData.data.history[userId].push({
+        id: manageData.data.contacts[userId].eventCount,
+        event,
+        time: Date.now()
+    });
+    manageData.data.contacts[userId].eventCount++;
+    updateDataFile();
+};
+
+func.getHistory = (userId, start, end) => {
+    // if start/end are negative, add eventCount (-100 means last 100 entries)
+    // retrives entries from start to end
+    const contactHistory = manageData.data.history[userId];
+    if (contactHistory.length === 0) {
+        return [];
+    }
+    while (end < 0) {
+        if (-end > contactHistory.length) {
+            end = 0;
+            break;
+        }
+        end += manageData.data.contacts[userId].eventCount;
+    }
+    while (start < 0) {
+        if (-start > contactHistory.length) {
+            start = 0;
+            break;
+        }
+        start += manageData.data.contacts[userId].eventCount;
+    }
+    console.log(start, end);
+    if (start >= contactHistory.length || end >= contactHistory.length) {
+        throw Error('Start and end indexes must be less than the length of the array');
+    } else {
+        const events = [];
+        for (let i = start; i <= end; i++) {
+            events.push(contactHistory[i]);
+        }
+        return events;
+    }
 };
 
 export default {
