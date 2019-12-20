@@ -28,6 +28,37 @@ export default class ChatPage extends Component {
         };
     }
 
+    updateContacts = (res) => {
+        if (res.success) {
+            this.setState((prevState) => ({
+                data: {
+                    ...prevState.data,
+                    contacts: res.body.contacts
+                }
+            }));
+        }
+    }
+
+    updateHistory = (res) => {
+        if (res.success) {
+            this.setState((prevState) => {
+                const newHistory = prevState.data.history;
+                for (const contactId of Object.keys(res.body.history)) {
+                    for (let i = 0; i < res.body.history[contactId].length; i++) {
+                        const newEvent = res.body.history[contactId][i];
+                        newHistory[contactId][newEvent.id] = newEvent;
+                    }
+                }
+                return {
+                    data: {
+                        ...prevState.data,
+                        history: newHistory
+                    }
+                };
+            });
+        }
+    }
+
     async componentDidMount() {
         this.socket = io();
         this.socket.on('connect-reply', res => {
@@ -38,15 +69,13 @@ export default class ChatPage extends Component {
                 });
 
                 this.socket.on('update-contacts', res => {
-                    if (res.success) {
-                        this.setState((prevState) => ({
-                            data: {
-                                ...prevState.data,
-                                contacts: res.body.contacts
-                            }
-                        }));
-                    }
+                    this.updateContacts(res);
                 });
+
+                this.socket.on('update-history', res => {
+                    this.updateHistory(res);
+                });
+
             } else {
                 this.setState({
                     status: 'error',
@@ -62,6 +91,15 @@ export default class ChatPage extends Component {
 
     async componentWillUnmount() {
         this.socket.close();
+    }
+
+    changeContact = (user) => {
+        this.setState((prevState) => ({
+            chat: {
+                ...prevState.chat,
+                selectedUser: user
+            }
+        }));
     }
 
     changeContactURL = async (contactID, newURL) => {
@@ -117,14 +155,7 @@ export default class ChatPage extends Component {
         } else if (this.state.status === 'ready') {
             const contactList = Object.entries(this.state.data.contacts).map((contactEntry, index) => {
                 return (
-                    <div key={index} className='border p-2 rounded chat-contact-box' onClick={() => {
-                        this.setState((prevState) => ({
-                            chat: {
-                                ...prevState.chat,
-                                selectedUser: contactEntry[0]
-                            }
-                        }));
-                    }}>
+                    <div key={index} user={contactEntry[0]} className='border p-2 rounded chat-contact-box' onClick={() => { this.changeContact(contactEntry[0]); }}>
                         <h4 className='mb-1'>
                             <ul className='list-inline m-0 align-middle'>
                                 <li className='list-inline-item ml-1 align-middle'>
@@ -164,7 +195,7 @@ export default class ChatPage extends Component {
                         height: '100%',
                         flexGrow: 1
                     }}>
-                        <ChatComponent handleChangeURL={this.changeContactURL} user={this.state.chat.selectedUser} data={this.state.chat.selectedUser === null ? null : this.state.data.contacts[this.state.chat.selectedUser]} />
+                        <ChatComponent handleChangeURL={this.changeContactURL} user={this.state.chat.selectedUser} data={this.state.chat.selectedUser === null ? null : this.state.data.contacts[this.state.chat.selectedUser]} history={this.state.chat.selectedUser === null ? null : this.state.data.history[this.state.chat.selectedUser]} />
                     </div>
                 </div>
             );
