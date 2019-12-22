@@ -14,9 +14,12 @@ const manageData = {};
 let socket;
 
 manageData.keysInitialized = false;
-manageData.passphraseSet = false;
-manageData.temp = {};
+manageData.temp = {
+    contacts: {}
+};
+manageData.passphrase = null;
 manageData.data = null;
+manageData.keyPair = null;
 
 manage.init = async (s) => {
     if (fs.existsSync('./api/data/key') && fs.existsSync('./api/data/key.pub')) {
@@ -36,8 +39,6 @@ manage.init = async (s) => {
 const setPassphrase = async (passphrase) => {
     if (manageData.keysInitialized) {
         manageData.passphrase = passphrase;
-
-        manageData.passphraseSet = true;
 
         if (fs.existsSync('./api/data/aes')) {
             const encryptedAESKey = fs.readFileSync('./api/data/aes', 'utf-8');
@@ -61,8 +62,14 @@ const setPassphrase = async (passphrase) => {
         if (fs.existsSync('./api/data/data')) {
             const encryptedData = fs.readFileSync('./api/data/data', 'utf-8');
             const decipheredtext = util.aes.decrypt(manageData.aesKey, encryptedData);
-            console.log(decipheredtext);
             manageData.data = JSON.parse(decipheredtext);
+            for (const contactId of Object.keys(manageData.data.contacts)) {
+                manageData.temp.contacts[contactId] = {
+                    connected: false,
+                    connectListener: null,
+                    aesKey: null
+                };
+            }
         } else {
             const connectionObj = {
                 publicKey: manageData.keyPair.publicKey,
@@ -90,11 +97,17 @@ const setPassphrase = async (passphrase) => {
 };
 
 const checkKeysAndPassphraseSet = () => {
-    if (!manageData.passphraseSet) {
-        throw Error('Passphrase not set.'); from;
+    if (!manageData.passphrase) {
+        throw Error('Passphrase not set.');
     }
     if (!manageData.keysInitialized) {
         throw Error('Public or private key is not set.');
+    }
+};
+
+const checkUserConnected = (userId) => {
+    if (!manageData.temp.contacts[userId].connected) {
+        throw Error('User not connected.');
     }
 };
 
@@ -107,27 +120,93 @@ const updateDataFile = () => {
     });
 };
 
-const encrypt = (plaintext, mykey, passphrase, theirkey) => {
+const signAndEncrypt = (plaintext, mykey, passphrase, theirkey) => {
     checkKeysAndPassphraseSet();
-    const encrypt1 = crypto.privateEncrypt({
+    const signature = util.rsa.sign(plaintext, {
         key: mykey,
         passphrase
-    }, plaintext);
-    const encrypt2 = crypto.publicEncrypt(theirkey, encrypt1);
-    return encrypt2;
+    });
+
+    const encryptedText = crypto.publicEncrypt(
+        theirkey,
+        Buffer.from(plaintext, 'utf8')
+    ).toString('base64');
+
+    const data = Buffer.from(JSON.stringify({
+        encryptedText,
+        signature
+    }), 'utf8').toString('base64');
+    return data;
 };
 
-const decrypt = (ciphertext, mykey, theirkey) => {
+const decryptAndVerify = (ciphertext, mykey, passphrase, theirkey) => {
     checkKeysAndPassphraseSet();
-    const decrypt1 = crypto.privateDecrypt(mykey, ciphertext);
-    const decrypt2 = crypto.publicDecrypt(theirkey, decrypt1);
-    return decrypt2;
+    const dataObj = JSON.parse(Buffer.from(ciphertext, 'base64').toString('utf8'));
+    const plaintext = crypto.privateDecrypt({
+        key: mykey,
+        passphrase
+    }, Buffer.from(dataObj.encryptedText, 'base64')).toString('utf8');
+    if (util.rsa.verify(dataObj.signature, plaintext, theirkey)) {
+        return plaintext;
+    } else {
+        throw Error('Message signature does not match message.');
+    }
+};
+
+const connectToContact = async (contactId) => {
+    checkKeysAndPassphraseSet();
+    return new Promise((resolve, reject) => {
+        try {
+            const packet = signAndEncrypt(
+                constants.text.REQUEST_TO_CONNECT,
+                manageData.keyPair.privateKey,
+                manageData.passphrase,
+                manageData.data.contacts[contactId].key
+            );
+            manageData.temp.contacts[contactId].connectListener = (data) => {
+                manageData.temp.contacts[contactId].connectListener = null;
+                const aesKey = decryptAndVerify(data, manageData.keyPair.privateKey, manageData.passphrase, manageData.data.contacts[contactId].key);
+                manageData.temp.contacts[contactId].aesKey = aesKey;
+                manageData.temp.contacts[contactId].connected = true;
+                resolve(true);
+            };
+            sendPacketUnencrypted(contactId, publicServerPacketTypes.CONNECT, packet);
+        } catch (err) {
+            reject(false);
+        }
+    });
+
+};
+
+const establishConnectionFromRequest = async (fromUserId, body) => {
+    const data = decryptAndVerify(
+        body,
+        manageData.keyPair.privateKey,
+        manageData.passphrase,
+        manageData.data.contacts[fromUserId].key
+    );
+    if (data === constants.text.REQUEST_TO_CONNECT) {
+        manageData.temp.contacts[fromUserId].aesKey = util.aes.genKey();
+        const packet = signAndEncrypt(
+            manageData.temp.contacts[fromUserId].aesKey,
+            manageData.keyPair.privateKey,
+            manageData.passphrase,
+            manageData.data.contacts[fromUserId].key
+        );
+        await sendPacketUnencrypted(fromUserId, publicServerPacketTypes.CONNECT_REPLY, packet);
+        manageData.temp.contacts[fromUserId].connected = true;
+    } else {
+        throw Error('Connection request does not match key stored.');
+    }
 };
 
 const heartbeatToContact = async (contactId) => {
     checkKeysAndPassphraseSet();
     try {
-        const res = await sendPacket(contactId, publicServerPacketTypes.HEARTBEAT, null);
+        if (!manageData.temp.contacts[contactId].connected) {
+            return await connectToContact(contactId);
+        }
+        const res = await sendPacketEncrypted(contactId, publicServerPacketTypes.HEARTBEAT, null);
         if (res.data.success) {
             return true;
         } else {
@@ -145,7 +224,7 @@ const initializeContacts = async () => {
     }
 };
 
-const addContact = async (name, key, address, connectionString) => {
+const addContact = async (name, key, address, connectionString, myServerAddr) => {
     checkKeysAndPassphraseSet();
     if (!name) {
         throw Error('Name of new contact is required');
@@ -159,17 +238,30 @@ const addContact = async (name, key, address, connectionString) => {
     const userId = uuidv5(CONTACT_UUID_NAMESPACE, connectionString);
     const contactExists = manageData.data.contacts[userId] ? true : false;
     if (!contactExists) {
-        manageData.data.contacts[userId] = {
-            name,
-            key,
-            address,
-            connectionString,
-            eventCount: 0,
-        };
-        manageData.data.history[userId] = [];
-        await addToHistory(userId, constants.eventTypes.ADD_CONTACT, {
-            address
-        });
+        let res;
+        if (myServerAddr) {
+            res = await sendPacketFirst(address, userId, myServerAddr);
+        }
+        if (!myServerAddr || (res.data.success && res.data.body.accept)) {
+            manageData.data.contacts[userId] = {
+                name,
+                key,
+                address,
+                connectionString,
+                eventCount: 0,
+            };
+            manageData.data.history[userId] = [];
+            manageData.temp.contacts[userId] = {
+                connected: false,
+                connectListener: null,
+                aesKey: null
+            };
+            await addToHistory(userId, constants.eventTypes.ADD_CONTACT, {
+                address
+            });
+        } else {
+            throw Error('Could not add contact.');
+        }
     } else {
         manageData.data.contacts[userId].address = address;
         await addToHistory(userId, constants.eventTypes.UPDATE_ADDRESS, {
@@ -214,7 +306,20 @@ const updateHistory = (userId, eventId, type, event) => {
     return historyObj;
 };
 
-const sendPacket = async (toUserId, type, body) => {
+const sendPacketFirst = async (toUserAddr, toUserId, serverAddr) => {
+    checkKeysAndPassphraseSet();
+    return await Axios.post(toUserAddr, {
+        type: constants.publicServer.types.FIRST_CONTACT,
+        from: manageData.data.userId,
+        to: toUserId,
+        body: {
+            connectionString: getConnectionString(),
+            serverAddr
+        }
+    });
+};
+
+const sendPacketUnencrypted = async (toUserId, type, body) => {
     checkKeysAndPassphraseSet();
     return await Axios.post(manageData.data.contacts[toUserId].address, {
         type,
@@ -224,11 +329,31 @@ const sendPacket = async (toUserId, type, body) => {
     });
 };
 
+const sendPacketEncrypted = async (toUserId, type, body) => {
+    checkKeysAndPassphraseSet();
+    checkUserConnected(toUserId);
+    const packetBody = {
+        type,
+        to: toUserId,
+        body
+    };
+    const encryptedPacketBody = util.aes.encrypt(manageData.temp.contacts[toUserId].aesKey, JSON.stringify(packetBody));
+    return await Axios.post(manageData.data.contacts[toUserId].address, {
+        from: manageData.data.userId,
+        eBody: encryptedPacketBody
+    });
+};
+
 const incomingPacketHandler = (req) => {
     // handle incoming messages from other users.
     console.log(req.body);
-    processIncomingPacket(req.body.from, req.body.type, req.body.body);
-    return;
+    let decryptedBody;
+    if (req.body.eBody) {
+        decryptedBody = JSON.parse(util.aes.decrypt(manageData.temp.contacts[req.body.from].aesKey, req.body.eBody));
+    } else {
+        decryptedBody = req.body;
+    }
+    return processIncomingPacket(req.body.from, decryptedBody.type, decryptedBody.body);
 };
 
 const processIncomingPacket = async (fromUserId, type, body) => {
@@ -238,8 +363,8 @@ const processIncomingPacket = async (fromUserId, type, body) => {
                 message: body.message
             });
             await socket.updateHistoryOfContact(fromUserId, historyEle.id, 1);
-            await sendPacket(fromUserId, publicServerPacketTypes.MESSAGE_REPLY, body);
-            break;
+            await sendPacketEncrypted(fromUserId, publicServerPacketTypes.MESSAGE_REPLY, body);
+            return;
         }
         case publicServerPacketTypes.MESSAGE_REPLY: {
             const historyEle = await updateHistory(fromUserId, body.id, constants.eventTypes.OUTGOING_MESSAGE, {
@@ -247,12 +372,45 @@ const processIncomingPacket = async (fromUserId, type, body) => {
                 message: body.message
             });
             await socket.updateHistoryOfContact(fromUserId, historyEle.id, 1);
-            break;
+            return;
+        }
+        case publicServerPacketTypes.CONNECT:
+            establishConnectionFromRequest(fromUserId, body);
+            return;
+        case publicServerPacketTypes.CONNECT_REPLY:
+            manageData.temp.contacts[fromUserId].connectListener(body);
+            return;
+        case publicServerPacketTypes.FIRST_CONTACT: {
+            const connectionData = JSON.parse(Buffer.from(body.connectionString, 'base64').toString());
+            try {
+                crypto.publicEncrypt(connectionData.publicKey, Buffer.from('testdata', 'utf-8'));
+            } catch (err) {
+                console.error(err);
+                throw Error('Public key of new contact is not valid.');
+            }
+            const waitForAcceptContact = async () => {
+                const res = await socket.showContactRequest({
+                    name: connectionData.name,
+                    publicKey: connectionData.publicKey,
+                    connectionString: body.connectionString,
+                    serverAddr: body.serverAddr
+                });
+                return res.accept;
+            };
+            if (await waitForAcceptContact()) {
+                await addContact(connectionData.name, connectionData.publicKey, body.serverAddr, body.connectionString, false);
+                return {
+                    accept: true
+                };
+            }
+            return {
+                accept: false
+            };
         }
         case publicServerPacketTypes.HEARTBEAT:
             return;
         default:
-            sendPacket(fromUserId, publicServerPacketTypes.ERROR, {
+            sendPacketUnencrypted(fromUserId, publicServerPacketTypes.ERROR, {
                 error: 'Packet type is not valid.'
             });
             break;
@@ -266,7 +424,7 @@ func.getKeysInitialized = () => {
 };
 
 func.getPassphraseSet = () => {
-    return manageData.passphraseSet;
+    return manageData.passphrase ? true : false;
 };
 
 func.getData = () => {
@@ -312,7 +470,7 @@ func.sendMessage = async (userId, message) => {
         status: constants.messageStatus.SENDING,
         message
     });
-    await sendPacket(userId, publicServerPacketTypes.MESSAGE, {
+    await sendPacketEncrypted(userId, publicServerPacketTypes.MESSAGE, {
         id: historyEle.id,
         message
     });
@@ -332,7 +490,7 @@ func.handleAddContact = async (data) => {
         console.error(err);
         throw Error('Public key of new contact is not valid.');
     }
-    return await addContact(connectionData.name, connectionData.publicKey, data.url, data.connectionString);
+    return await addContact(connectionData.name, connectionData.publicKey, data.url, data.connectionString, data.serverAddr);
 };
 
 func.getHistory = (userId, start, end) => {
@@ -356,7 +514,6 @@ func.getHistory = (userId, start, end) => {
         }
         start += manageData.data.contacts[userId].eventCount;
     }
-    console.log(start, end);
     if (start >= contactHistory.length || end >= contactHistory.length) {
         throw Error('Start and end indexes must be less than the length of the array');
     } else {

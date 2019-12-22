@@ -3,6 +3,8 @@ import io from 'socket.io-client';
 import StatusDot from './StatusDot';
 import ChatComponent from './ChatComponent';
 
+let acceptContactRequest;
+let denyContactRequest;
 export default class ChatPage extends Component {
 
     constructor(props) {
@@ -22,7 +24,13 @@ export default class ChatPage extends Component {
             chat: {
                 selectedUser: null
             },
-            data: {}
+            data: {},
+            contactRequest: {
+                name: '',
+                connectionString: '',
+                serverAddr: '',
+                publicKey: ''
+            }
         };
     }
 
@@ -42,6 +50,9 @@ export default class ChatPage extends Component {
             this.setState((prevState) => {
                 const newHistory = prevState.data.history;
                 for (const contactId of Object.keys(res.body.history)) {
+                    if (!newHistory[contactId]) {
+                        newHistory[contactId] = [];
+                    }
                     for (let i = 0; i < res.body.history[contactId].length; i++) {
                         const newEvent = res.body.history[contactId][i];
                         newHistory[contactId][newEvent.id] = newEvent;
@@ -74,6 +85,14 @@ export default class ChatPage extends Component {
                     this.updateHistory(res);
                 });
 
+                this.socket.on('contact-request', async (req, callback) => {
+                    const accept = await this.showContactRequest(req);
+                    console.log(accept);
+                    callback({
+                        accept
+                    });
+                });
+
             } else {
                 this.setState({
                     status: 'error',
@@ -91,6 +110,24 @@ export default class ChatPage extends Component {
         this.socket.close();
     }
 
+    showContactRequest = (req) => {
+        return new Promise((resolve) => {
+            this.setState({
+                contactRequest: req.body.contactData
+            }, () => {
+                acceptContactRequest = () => {
+                    $('#contact-request-modal').modal('hide');
+                    resolve(true);
+                };
+                denyContactRequest = () => {
+                    $('#contact-request-modal').modal('hide');
+                    resolve(false);
+                };
+                $('#contact-request-modal').modal('show');
+            });
+        });
+    }
+
     changeContact = (user) => {
         this.setState((prevState) => ({
             chat: {
@@ -103,7 +140,7 @@ export default class ChatPage extends Component {
     changeContactURL = async (contactID, newURL) => {
         const connectionString = this.state.data.contacts[contactID].connectionString;
         const url = newURL;
-        return await this.handleAddContact(connectionString, url);
+        return await this.handleAddContact(connectionString, url, false);
     }
 
     sendMessage = async (message) => {
@@ -117,8 +154,10 @@ export default class ChatPage extends Component {
         e.preventDefault();
         const connectionString = document.getElementById('connection-string-input').value;
         const url = document.getElementById('url-input').value;
+        const serverAddr = document.getElementById('serverAddr-input').value;
 
-        const data = await this.handleAddContact(connectionString, url);
+        const data = await this.handleAddContact(connectionString, url, serverAddr);
+
         if (data.success) {
             document.getElementById('connection-string-input').value = '';
             document.getElementById('url-input').value = '';
@@ -135,11 +174,12 @@ export default class ChatPage extends Component {
         }
     }
 
-    handleAddContact = async (connectionString, url) => {
+    handleAddContact = async (connectionString, url, serverAddr) => {
         return new Promise((resolve) => {
             this.socket.emit('add-contact', {
                 connectionString,
-                url
+                url,
+                serverAddr
             });
 
             this.socket.on('add-contact-reply', (data) => {
@@ -225,12 +265,17 @@ export default class ChatPage extends Component {
                                         </div>
                                         <div className='form-group'>
                                             <label htmlFor='connection-string-input'>Connection String</label>
-                                            <textarea style={{ fontSize: '10px' }} className='form-control' id='connection-string-input' rows='10' />
+                                            <textarea style={{ fontSize: '10px' }} className='form-control' id='connection-string-input' rows='10' required />
                                         </div>
                                         <div className='form-group'>
                                             <label htmlFor='url-input'>URL</label>
-                                            <input type='text' className='form-control' id='url-input' />
+                                            <input type='text' className='form-control' id='url-input' required />
                                             <small id='url-help' className='form-text text-muted'>This is the URL with the port where the public server of the other user is listening.</small>
+                                        </div>
+                                        <div className='form-group'>
+                                            <label htmlFor='serverAddr-input'>My Public Server URL</label>
+                                            <input type='text' className='form-control' id='serverAddr-input' defaultValue={'http://localhost:' + this.state.data.serverPort} required />
+                                            <small id='serverAddr-help' className='form-text text-muted'>This is the URL with the port where your public server is listening.</small>
                                         </div>
                                     </div>
                                     <div className='modal-footer'>
@@ -265,6 +310,39 @@ export default class ChatPage extends Component {
                                 </div>
                                 <div className='modal-footer'>
                                     <button type='button' className='btn btn-secondary' data-dismiss='modal'>Close</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Contact Request Modal */}
+                    <div className='modal fade' id='contact-request-modal' tabIndex='-1' role='dialog' >
+                        <div className='modal-dialog' role='document'>
+                            <div className='modal-content'>
+                                <div className='modal-header'>
+                                    <h5 className='modal-title'>Contact Connect Request</h5>
+                                    <button type='button' className='close' data-dismiss='modal' aria-label='Close'>
+                                        <span aria-hidden='true'>&times;</span>
+                                    </button>
+                                </div>
+                                <div className='modal-body'>
+                                    <p>You have received a request from {this.state.contactRequest.name} to connect with you. Please review the details below.</p>
+                                    <div className='form-group'>
+                                        <h4>Connection String</h4>
+                                        <textarea readOnly value={this.state.contactRequest.connectionString} style={{ fontSize: '10px' }} className='form-control' rows='10' />
+                                    </div>
+                                    <div className='form-group'>
+                                        <h4>Public Key</h4>
+                                        <textarea readOnly value={this.state.contactRequest.publicKey} style={{ fontSize: '10px' }} className='form-control' rows='10' />
+                                    </div>
+                                    <div className='form-group'>
+                                        <h4>Public Server URL</h4>
+                                        <input type='text' readOnly defaultValue={this.state.contactRequest.serverAddr} className='form-control' />
+                                    </div>
+                                </div>
+                                <div className='modal-footer'>
+                                    <button type='button' className='btn btn-success' onClick={(e) => { e.preventDefault(); acceptContactRequest(); }}>Accept</button>
+                                    <button type='button' className='btn btn-danger' onClick={(e) => { e.preventDefault(); denyContactRequest(); }} >Deny</button>
                                 </div>
                             </div>
                         </div>

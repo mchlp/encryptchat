@@ -1,14 +1,42 @@
 import React, { Component } from 'react';
 import StatusDot from './StatusDot';
+import constants from '../api/constants';
 
+const timestampOptions = {
+    dateStyle: 'full',
+    timeStyle: 'long',
+    weekday: 'short',
+    month: 'short',
+    hour12: true
+};
 export default class ChatComponent extends Component {
     constructor(props) {
         super(props);
+        this.state = {};
     }
 
-    componentDidUpdate() {
+    componentDidMount() {
+        if (!this.state.height) {
+            this.setState({
+                height: document.getElementById('chat-body-container').clientHeight
+            });
+        }
+    }
+
+    getSnapshotBeforeUpdate() {
+        const element = document.getElementById('chat-body-container');
+        const scrollAtBottom = Math.abs(element.scrollHeight - element.scrollTop - element.clientHeight) < 10;
+        return {
+            scrollAtBottom
+        };
+    }
+
+    componentDidUpdate(prevProps, prevState, snapshot) {
         if (this.props.user) {
             document.getElementById('message-input').focus();
+        }
+        if (prevProps.user !== this.props.user || snapshot.scrollAtBottom) {
+            document.getElementById('chat-body-container').scrollTop = document.getElementById('chat-body-container').scrollHeight;
         }
     }
 
@@ -25,6 +53,58 @@ export default class ChatComponent extends Component {
     }
 
     render() {
+        let ChatBody;
+        if (this.props.user) {
+            const chatEleList = this.props.history.map((historyEle) => {
+                switch (historyEle.type) {
+                    case constants.eventTypes.INCOMING_MESSAGE: {
+                        return (
+                            <div key={historyEle.id} className='mt-2 clearfix'>
+                                <div className='chat-bubble-left py-2 px-3' title={new Date(historyEle.time).toLocaleString('en-CA', timestampOptions)}>
+                                    {historyEle.event.message}
+                                </div>
+                            </div>
+                        );
+                    }
+                    case constants.eventTypes.OUTGOING_MESSAGE: {
+                        return (
+                            <div key={historyEle.id} className='mt-2 clearfix'>
+                                <div className='chat-bubble-right py-2 px-3' title={new Date(historyEle.time).toLocaleString('en-CA', timestampOptions)}>
+                                    {historyEle.event.message}
+                                </div>
+                            </div>
+                        );
+                    }
+                    case constants.eventTypes.ADD_CONTACT: {
+                        return (
+                            <div key={historyEle.id} className='mt-2 py-2 px-3' title={new Date(historyEle.time).toLocaleString('en-CA', timestampOptions)}>
+                                <div className='text-center chat-grey-text'>
+                                    Added {this.props.data.name} as a contact with address {historyEle.event.address}.
+                                </div>
+                            </div>
+                        );
+                    }
+                    case constants.eventTypes.UPDATE_ADDRESS: {
+                        return (
+                            <div key={historyEle.id} className='mt-2 py-2 px-3' title={new Date(historyEle.time).toLocaleString('en-CA', timestampOptions)}>
+                                <div className='text-center chat-grey-text'>
+                                    Update address of {this.props.data.name} to {historyEle.event.address}.
+                                </div>
+                            </div>
+                        );
+                    }
+                    default:
+                        console.log(historyEle);
+                }
+            });
+            ChatBody = (
+                <div className='clearfix'>
+                    {chatEleList}
+                </div>
+            );
+        } else {
+            ChatBody = null;
+        }
         return (
             <div className='p-3 fill-height'>
                 <div className='card fill-height'>
@@ -47,25 +127,19 @@ export default class ChatComponent extends Component {
                             )
                         }
                     </div>
-                    <div className='card-body p-3' style={{ wordBreak: 'break-all' }}>
-                        <div>
-                            User:
-                            History: {JSON.stringify(this.props.history)}
-                        </div>
+                    <div className='card-body' id='chat-body-container' style={{ wordBreak: 'break-all', height: this.state.height, overflowY: 'scroll', }}>
+                        {ChatBody}
                     </div>
-                    {this.props.user ?
-                        <div className='card-footer'>
-                            <form onSubmit={this.sendMessage} autoComplete='off'>
-                                <div className='input-group'>
-                                    <input readOnly={!this.props.data.online} type='text' className='form-control' id='message-input' />
-                                    <div className='input-group-append'>
-                                        <button type='submit' className='btn btn-secondary'>Send</button>
-                                    </div>
+                    <div className='card-footer'>
+                        <form onSubmit={this.sendMessage} autoComplete='off'>
+                            <div className='input-group'>
+                                <input readOnly={!this.props.user || !this.props.data.online} type='text' className='form-control' id='message-input' />
+                                <div className='input-group-append'>
+                                    <button type='submit' className='btn btn-secondary'>Send</button>
                                 </div>
-                            </form>
-                        </div>
-                        : null
-                    }
+                            </div>
+                        </form>
+                    </div>
                 </div>
 
                 {/* Modify URL Modal */}

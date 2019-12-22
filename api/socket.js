@@ -4,6 +4,19 @@ const util = require('./util.js');
 let clientConnected = false;
 let globalSocket;
 
+const showContactRequest = async (contactData) => {
+    const sendData = await util.resWrapper(async () => {
+        return {
+            contactData
+        };
+    });
+    return new Promise((resolve) => {
+        globalSocket.emit('contact-request', sendData, (data) => {
+            resolve(data);
+        });
+    });
+};
+
 const updateContacts = async () => {
     globalSocket.emit('update-contacts', await util.resWrapper(async () => {
         return {
@@ -53,7 +66,8 @@ const init = (io) => {
                 return {
                     contacts: manage.func.getData().contacts,
                     history,
-                    connectionString: manage.func.getConnectionString()
+                    connectionString: manage.func.getConnectionString(),
+                    serverPort: manage.func.getData().port
                 };
             }));
 
@@ -78,4 +92,4 @@ const init = (io) => {
     });
 };
 
-module.exports = { init, updateHistoryOfContact };
+module.exports = { init, updateHistoryOfContact, showContactRequest };

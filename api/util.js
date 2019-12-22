@@ -6,6 +6,8 @@ util.ONE_CLIENT_ONLY_ERROR = 'A client page is already open. Only one client pag
 
 const AES_KEY_LENGTH = 128;
 const AES_ALGORITHM = 'aes192';
+const RSA_SIGN_ALGORITHM = 'RSA-SHA256';
+const RSA_SIGN_ENCODING = 'base64';
 
 util.resWrapper = async (func) => {
     try {
@@ -39,6 +41,21 @@ rsa.genKeys = (passphrase) => {
         }
     });
 };
+
+rsa.sign = (text, key) => {
+    const sign = crypto.createSign(RSA_SIGN_ALGORITHM);
+    sign.update(text);
+    sign.end();
+    return sign.sign(key, RSA_SIGN_ENCODING);
+};
+
+rsa.verify = (signature, text, key) => {
+    const verify = crypto.createVerify(RSA_SIGN_ALGORITHM);
+    verify.update(text);
+    verify.end();
+    return verify.verify(key, signature, RSA_SIGN_ENCODING);
+};
+
 util.rsa = rsa;
 
 const aes = {};

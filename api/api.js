@@ -16,21 +16,6 @@ router.get('/manage', (req, res) => {
     res.send('EncryptChat API - Manage');
 });
 
-/*
-router.post('/sendMessage', async (req, res) => {
-    res.send(await util.resWrapper(async () => {
-        const cipherText = encrypt(req.body.plaintext, manageData.keyPair.privateKey, manageData.contacts[req.body.receiverId].key);
-        axios.
-            addToHistory(req.body.receiverId, {
-                type: 'message',
-                direction: 'outgoing',
-                text: req.body.plaintext,
-                time: Date.getTime()
-            });
-    }));
-});
-*/
-
 router.get('/manage/status', async (req, res) => {
     res.send(await util.resWrapper(() => {
         if (!manage.func.getKeysInitialized()) {
