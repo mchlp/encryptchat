@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+const crypto = require('crypto');
 
 const util = {};
 
@@ -69,4 +69,4 @@ aes.decrypt = (key, cipherpack) => {
 
 util.aes = aes;
 
-export default util;
+module.exports = util;

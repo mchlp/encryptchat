@@ -1,7 +1,5 @@
 import React, { Component } from 'react';
 import io from 'socket.io-client';
-import util from '../api/util.mjs';
-import Axios from 'axios';
 import StatusDot from './StatusDot';
 import ChatComponent from './ChatComponent';
 
@@ -108,6 +106,13 @@ export default class ChatPage extends Component {
         return await this.handleAddContact(connectionString, url);
     }
 
+    sendMessage = async (message) => {
+        this.socket.emit('send-message', {
+            receiver: this.state.chat.selectedUser,
+            message
+        });
+    }
+
     addContact = async (e) => {
         e.preventDefault();
         const connectionString = document.getElementById('connection-string-input').value;
@@ -195,7 +200,7 @@ export default class ChatPage extends Component {
                         height: '100%',
                         flexGrow: 1
                     }}>
-                        <ChatComponent handleChangeURL={this.changeContactURL} user={this.state.chat.selectedUser} data={this.state.chat.selectedUser === null ? null : this.state.data.contacts[this.state.chat.selectedUser]} history={this.state.chat.selectedUser === null ? null : this.state.data.history[this.state.chat.selectedUser]} />
+                        <ChatComponent sendMessage={this.sendMessage} handleChangeURL={this.changeContactURL} user={this.state.chat.selectedUser} data={this.state.chat.selectedUser === null ? null : this.state.data.contacts[this.state.chat.selectedUser]} history={this.state.chat.selectedUser === null ? null : this.state.data.history[this.state.chat.selectedUser]} />
                     </div>
                 </div>
             );

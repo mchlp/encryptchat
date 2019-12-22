@@ -1,5 +1,5 @@
-import express from 'express';
-import publicServerHandler from './publicServerHandler.mjs';
+const express = require('express');
+const publicServerHandler = require('./publicServerHandler.js');
 
 const publicServer = {};
 
@@ -47,4 +47,4 @@ publicServer.stop = () => {
     });
 };
 
-export default publicServer;
+module.exports = publicServer;

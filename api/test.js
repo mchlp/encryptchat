@@ -1,4 +1,4 @@
-import util from './util.mjs';
+import util from './util.js';
 
 const aesKey = util.aes.genKey();
 const ciphertext = util.aes.encrypt(aesKey, 'this is a test');

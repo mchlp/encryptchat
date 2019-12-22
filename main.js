@@ -1,9 +1,9 @@
-import express from 'express';
-import next from 'next';
-import fs from 'fs';
-import api from './api/api.mjs';
-import socket from './api/socket.mjs';
-import socketIO from 'socket.io';
+const express = require('express');
+const next = require('next');
+const fs = require('fs');
+const api = require('./api/api');
+const socket = require('./api/socket');
+const socketIO = require('socket.io');
 
 const config = JSON.parse(fs.readFileSync('./config.json', 'utf8'));
 
@@ -14,7 +14,6 @@ const handle = app.getRequestHandler();
 app.prepare().then(async () => {
 
     const app = express();
-    await api.init();
 
     app.use(express.json());
 
@@ -31,7 +30,8 @@ app.prepare().then(async () => {
 
     const io = socketIO(server);
     socket.init(io);
-
+    await api.init(socket);
+    
 }).catch((err) => {
     console.error(err.stack);
     process.exit(1);

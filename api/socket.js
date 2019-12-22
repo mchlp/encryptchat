@@ -1,5 +1,5 @@
-import manage from './manage.mjs';
-import util from './util.mjs';
+const manage = require('./manage.js');
+const util = require('./util.js');
 
 let clientConnected = false;
 let globalSocket;
@@ -8,6 +8,23 @@ const updateContacts = async () => {
     globalSocket.emit('update-contacts', await util.resWrapper(async () => {
         return {
             contacts: await manage.func.getData().contacts
+        };
+    }));
+};
+
+const updateHistoryOfContact = async (contactId, startEntry, numEntries) => {
+    let lastEntry;
+    if (!startEntry) {
+        startEntry = 0;
+        lastEntry = -1;
+    } else {
+        lastEntry = startEntry + numEntries - 1;
+    }
+    globalSocket.emit('update-history', await util.resWrapper(async () => {
+        return {
+            history: {
+                [contactId]: manage.func.getHistory(contactId, startEntry, lastEntry)
+            }
         };
     }));
 };
@@ -41,19 +58,16 @@ const init = (io) => {
             }));
 
             socket.on('add-contact', async (data) => {
-                let newContactId;
                 socket.emit('add-contact-reply', await util.resWrapper(async () => {
-                    newContactId = await manage.func.handleAddContact(data);
+                    const newContactId = await manage.func.handleAddContact(data);
                     await updateContacts();
-                    socket.emit('update-history', await util.resWrapper(async () => {
-                        return {
-                            history: {
-                                [newContactId]: manage.func.getHistory(newContactId, -100, -1)
-                            }
-                        };
-                    }));
-                    return newContactId;
+                    await updateHistoryOfContact(newContactId);
                 }));
+            });
+
+            socket.on('send-message', async (data) => {
+                manage.func.sendMessage(data.receiver, data.message);
+                await updateHistoryOfContact(data.receiver, -100, 100);
             });
 
             socket.on('disconnect', () => {
@@ -64,4 +78,4 @@ const init = (io) => {
     });
 };
 
-export default { init };
+module.exports = { init, updateHistoryOfContact };

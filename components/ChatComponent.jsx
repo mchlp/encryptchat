@@ -6,15 +6,21 @@ export default class ChatComponent extends Component {
         super(props);
     }
 
+    componentDidUpdate() {
+        if (this.props.user) {
+            document.getElementById('message-input').focus();
+        }
+    }
+
     changeURLSubmit = async (e) => {
         e.preventDefault();
         await this.props.handleChangeURL(this.props.user, document.getElementById('change-url-input').value);
         $('#modify-url-modal').modal('hide');
     }
 
-    sendMessage = (e) => {
+    sendMessage = async (e) => {
         e.preventDefault();
-        const text = document.getElementById('message-input').value;
+        this.props.sendMessage(document.getElementById('message-input').value);
         document.getElementById('message-input').value = '';
     }
 
@@ -51,7 +57,7 @@ export default class ChatComponent extends Component {
                         <div className='card-footer'>
                             <form onSubmit={this.sendMessage} autoComplete='off'>
                                 <div className='input-group'>
-                                    <input type='text' className='form-control' id='message-input' />
+                                    <input readOnly={!this.props.data.online} type='text' className='form-control' id='message-input' />
                                     <div className='input-group-append'>
                                         <button type='submit' className='btn btn-secondary'>Send</button>
                                     </div>
