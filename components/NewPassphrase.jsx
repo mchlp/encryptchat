@@ -74,7 +74,7 @@ class NewPassphrase extends React.Component {
                             <div className='input-group-prepend'>
                                 <span className='input-group-text'>Enter Passphrase</span>
                             </div>
-                            <input id='passphrase-input' type='password' className='form-control' placeholder='Passhrase' maxLength='1000' required />
+                            <input id='passphrase-input' type='password' className='form-control' placeholder='Passphrase' maxLength='1000' required />
                         </div>
                         <div className='input-group mb-3'>
                             <div className='input-group-prepend'>
