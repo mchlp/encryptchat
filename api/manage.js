@@ -166,7 +166,7 @@ const connectToContact = async (contactId) => {
     checkKeysAndPassphraseSet();
     const body = {
         text: constants.text.REQUEST_TO_CONNECT,
-        publicAddr: manageData.publicAddr
+        publicAddr: manageData.temp.publicAddr
     };
     const packet = signAndEncrypt(
         JSON.stringify(body),
@@ -204,6 +204,7 @@ const establishConnectionFromRequest = async (fromUserId, body) => {
         manageData.passphrase,
         manageData.data.contacts[fromUserId].key
     ));
+    console.log(data);
     if (data.text === constants.text.REQUEST_TO_CONNECT) {
         manageData.data.contacts[fromUserId].address = data.publicAddr;
         manageData.temp.contacts[fromUserId].aesKey = util.aes.genKey();
