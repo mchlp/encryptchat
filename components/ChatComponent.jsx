@@ -48,7 +48,7 @@ export default class ChatComponent extends Component {
 
     sendMessage = async (e) => {
         e.preventDefault();
-        if (this.props.user) {
+        if (this.props.user && this.props.data.online) {
             this.props.sendMessage(document.getElementById('message-input').value);
             document.getElementById('message-input').value = '';
         }
@@ -126,8 +126,8 @@ export default class ChatComponent extends Component {
                                     </li>
                                 </ul>
                             ) : (
-                                    <h4 className='m-0'>No User Selected</h4>
-                                )
+                                <h4 className='m-0'>No User Selected</h4>
+                            )
                         }
                     </div>
                     <div className='card-body' id='chat-body-container' style={{ wordBreak: 'break-all', height: this.state.height, overflowY: 'scroll', }}>
