@@ -184,7 +184,9 @@ const connectToContact = async (contactId) => {
                 resolve(true);
             };
             sendPacketUnencrypted(contactId, publicServerPacketTypes.CONNECT, packet).then((res) => {
-                console.log(res);
+                if (res.status != 200) {
+                    reject(false);
+                }
             }).catch(() => {
                 reject(false);
             });
