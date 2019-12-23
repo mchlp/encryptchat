@@ -69,7 +69,7 @@ export default class ChatComponent extends Component {
                     case constants.eventTypes.OUTGOING_MESSAGE: {
                         return (
                             <div key={historyEle.id} className='mt-2 clearfix'>
-                                <div className='chat-bubble-right py-2 px-3' title={new Date(historyEle.time).toLocaleString('en-CA', timestampOptions)}>
+                                <div className={'chat-bubble-right py-2 px-3 ' + (historyEle.event.status === constants.messageStatus.SENDING ? 'chat-sending-text' : null)} title={new Date(historyEle.time).toLocaleString('en-CA', timestampOptions) + (historyEle.event.status === constants.messageStatus.SENDING ? ' - Sending' : null)}>
                                     {historyEle.event.message}
                                 </div>
                             </div>
@@ -120,6 +120,7 @@ export default class ChatComponent extends Component {
                                     </li>
                                     <li className='list-inline-item float-right align-middle'>
                                         <button data-toggle='modal' data-target='#modify-url-modal' className='btn btn-link p-0'>Modify URL</button>
+                                        <button className='btn btn-link p-0 ml-4' onClick={this.props.removeContact} >Remove Contact</button>
                                     </li>
                                 </ul>
                             ) : (

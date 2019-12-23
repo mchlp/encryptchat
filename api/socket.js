@@ -67,7 +67,8 @@ const init = (io) => {
                     contacts: manage.func.getData().contacts,
                     history,
                     connectionString: manage.func.getConnectionString(),
-                    serverPort: manage.func.getData().port
+                    serverPort: manage.func.getData().port,
+                    publicAddr: manage.func.getTemp().publicAddr
                 };
             }));
 
@@ -84,6 +85,12 @@ const init = (io) => {
                 await updateHistoryOfContact(data.receiver, -100, 100);
             });
 
+            socket.on('remove-contact', async (data) => {
+                await manage.func.removeContact(data.contact);
+                await updateContacts();
+                await updateHistoryOfContact(data.contact);
+            });
+
             socket.on('disconnect', () => {
                 clientConnected = false;
                 console.log('disconnect!');
@@ -92,4 +99,4 @@ const init = (io) => {
     });
 };
 
-module.exports = { init, updateHistoryOfContact, showContactRequest };
+module.exports = { init, updateHistoryOfContact, showContactRequest, updateContacts };

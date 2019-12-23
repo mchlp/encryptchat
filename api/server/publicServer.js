@@ -1,10 +1,12 @@
 const express = require('express');
+const ngrok = require('ngrok');
 const publicServerHandler = require('./publicServerHandler.js');
 
 const publicServer = {};
 
 publicServer.counter = 1;
 publicServer.port;
+publicServer.publicAddr;
 publicServer.start = (port, handlerFunc) => {
     return new Promise((resolve, reject) => {
         if (!port) {
@@ -18,9 +20,11 @@ publicServer.start = (port, handlerFunc) => {
             publicServer.app = express();
             publicServer.app.use('/', publicServerHandler.router);
             publicServer.port = port;
-            publicServer.httpServer = publicServer.app.listen(port, (err) => {
+            publicServer.httpServer = publicServer.app.listen(port, async (err) => {
                 if (err) reject(err);
                 console.log('Public Server listening on Port ' + port + '.');
+                publicServer.publicAddr = await ngrok.connect(port);
+                console.log('Tunnel started from ' + publicServer.publicAddr + ' to http://localhost:' + port + '.');
                 resolve();
             }).on('error', (err) => {
                 reject(err);

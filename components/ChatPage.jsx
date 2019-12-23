@@ -2,6 +2,8 @@ import React, { Component } from 'react';
 import io from 'socket.io-client';
 import StatusDot from './StatusDot';
 import ChatComponent from './ChatComponent';
+import LoadingButton from './LoadingButton';
+import Router from 'next/router';
 
 let acceptContactRequest;
 let denyContactRequest;
@@ -19,7 +21,8 @@ export default class ChatPage extends Component {
                 alert: {
                     show: false,
                     text: ''
-                }
+                },
+                loading: false
             },
             chat: {
                 selectedUser: null
@@ -43,6 +46,24 @@ export default class ChatPage extends Component {
                 }
             }));
         }
+    }
+
+    removeContact = () => {
+        this.socket.emit('remove-contact', {
+            contact: this.state.chat.selectedUser
+        });
+        this.setState((prevState) => ({
+            chat: {
+                ...prevState.chat,
+                selectedUser: null
+            },
+            data: {
+                ...prevState.data,
+                history: {
+                    [prevState.chat.selectedUser]: null
+                }
+            }
+        }));
     }
 
     updateHistory = (res) => {
@@ -74,7 +95,20 @@ export default class ChatPage extends Component {
             if (res.success) {
                 this.setState({
                     status: 'ready',
-                    data: res.body
+                    data: res.body,
+                    alert: {
+                        show: false,
+                        text: ''
+                    }
+                });
+
+                this.socket.on('disconnect', res => {
+                    this.setState({
+                        alert: {
+                            show: true,
+                            text: 'Cannot connect to private server. Please restart the private server.'
+                        }
+                    });
                 });
 
                 this.socket.on('update-contacts', res => {
@@ -152,6 +186,12 @@ export default class ChatPage extends Component {
 
     addContact = async (e) => {
         e.preventDefault();
+        this.setState(prevState => ({
+            addContact: {
+                ...prevState.addContact,
+                loading: true
+            }
+        }));
         const connectionString = document.getElementById('connection-string-input').value;
         const url = document.getElementById('url-input').value;
         const serverAddr = document.getElementById('serverAddr-input').value;
@@ -161,6 +201,12 @@ export default class ChatPage extends Component {
         if (data.success) {
             document.getElementById('connection-string-input').value = '';
             document.getElementById('url-input').value = '';
+            this.setState(prevState => ({
+                addContact: {
+                    ...prevState.addContact,
+                    loading: false
+                }
+            }));
             $('#add-contact-modal').modal('hide');
         } else {
             this.setState({
@@ -168,7 +214,8 @@ export default class ChatPage extends Component {
                     alert: {
                         show: true,
                         text: 'The contact could not be added. Please ensure that the connection string is correct.'
-                    }
+                    },
+                    loading: false
                 }
             });
         }
@@ -240,7 +287,7 @@ export default class ChatPage extends Component {
                         height: '100%',
                         flexGrow: 1
                     }}>
-                        <ChatComponent sendMessage={this.sendMessage} handleChangeURL={this.changeContactURL} user={this.state.chat.selectedUser} data={this.state.chat.selectedUser === null ? null : this.state.data.contacts[this.state.chat.selectedUser]} history={this.state.chat.selectedUser === null ? null : this.state.data.history[this.state.chat.selectedUser]} />
+                        <ChatComponent removeContact={this.removeContact} sendMessage={this.sendMessage} handleChangeURL={this.changeContactURL} user={this.state.chat.selectedUser} data={this.state.chat.selectedUser === null ? null : this.state.data.contacts[this.state.chat.selectedUser]} history={this.state.chat.selectedUser === null ? null : this.state.data.history[this.state.chat.selectedUser]} />
                     </div>
                 </div>
             );
@@ -274,13 +321,13 @@ export default class ChatPage extends Component {
                                         </div>
                                         <div className='form-group'>
                                             <label htmlFor='serverAddr-input'>My Public Server URL</label>
-                                            <input type='text' className='form-control' id='serverAddr-input' defaultValue={'http://localhost:' + this.state.data.serverPort} required />
-                                            <small id='serverAddr-help' className='form-text text-muted'>This is the URL with the port where your public server is listening.</small>
+                                            <input type='text' className='form-control' id='serverAddr-input' defaultValue={this.state.data.publicAddr} required />
+                                            <small id='serverAddr-help' className='form-text text-muted'>This is the URL with the port where your public server is listening. This should not need to be changed unless you started another tunnel.</small>
                                         </div>
                                     </div>
                                     <div className='modal-footer'>
                                         <button type='button' className='btn btn-secondary' data-dismiss='modal'>Close</button>
-                                        <button type='submit' className='btn btn-primary'>Add</button>
+                                        <LoadingButton type='submit' className='btn btn-primary' loading={this.state.addContact.loading}>Add</LoadingButton>
                                     </div>
                                 </form>
                             </div>
@@ -305,7 +352,8 @@ export default class ChatPage extends Component {
                                     <div className='form-group'>
                                         <h4>URL</h4>
                                         <p>Publicly accessible URL (including port) where public server is listening</p>
-                                        <small id='url-help' className='form-text text-muted'>EX: http://localhost:3002/</small>
+                                        <input readOnly value={this.state.data.publicAddr} className='form-control' type='text'></input>
+                                        <small id='url-help' className='form-text text-muted'>This should be your publicly accessible URL unless you started another tunnel.</small>
                                     </div>
                                 </div>
                                 <div className='modal-footer'>
