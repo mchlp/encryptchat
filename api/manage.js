@@ -198,12 +198,12 @@ const connectToContact = async (contactId) => {
 };
 
 const establishConnectionFromRequest = async (fromUserId, body) => {
-    const data = decryptAndVerify(
+    const data = JSON.parse(decryptAndVerify(
         body,
         manageData.keyPair.privateKey,
         manageData.passphrase,
         manageData.data.contacts[fromUserId].key
-    );
+    ));
     if (data.text === constants.text.REQUEST_TO_CONNECT) {
         manageData.data.contacts[fromUserId].address = data.publicAddr;
         manageData.temp.contacts[fromUserId].aesKey = util.aes.genKey();
