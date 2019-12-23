@@ -164,8 +164,12 @@ const decryptAndVerify = (ciphertext, mykey, passphrase, theirkey) => {
 
 const connectToContact = async (contactId) => {
     checkKeysAndPassphraseSet();
+    const body = {
+        text: constants.text.REQUEST_TO_CONNECT,
+        publicAddr: manageData.publicAddr
+    };
     const packet = signAndEncrypt(
-        constants.text.REQUEST_TO_CONNECT,
+        JSON.stringify(body),
         manageData.keyPair.privateKey,
         manageData.passphrase,
         manageData.data.contacts[contactId].key
@@ -179,7 +183,9 @@ const connectToContact = async (contactId) => {
                 manageData.temp.contacts[contactId].connected = true;
                 resolve(true);
             };
-            sendPacketUnencrypted(contactId, publicServerPacketTypes.CONNECT, packet).catch(err => {
+            sendPacketUnencrypted(contactId, publicServerPacketTypes.CONNECT, packet).then((res) => {
+                console.log(res);
+            }).catch(() => {
                 reject(false);
             });
         } catch (err) {
@@ -196,7 +202,8 @@ const establishConnectionFromRequest = async (fromUserId, body) => {
         manageData.passphrase,
         manageData.data.contacts[fromUserId].key
     );
-    if (data === constants.text.REQUEST_TO_CONNECT) {
+    if (data.text === constants.text.REQUEST_TO_CONNECT) {
+        manageData.data.contacts[fromUserId].address = data.publicAddr;
         manageData.temp.contacts[fromUserId].aesKey = util.aes.genKey();
         const packet = signAndEncrypt(
             manageData.temp.contacts[fromUserId].aesKey,

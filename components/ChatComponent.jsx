@@ -48,8 +48,10 @@ export default class ChatComponent extends Component {
 
     sendMessage = async (e) => {
         e.preventDefault();
-        this.props.sendMessage(document.getElementById('message-input').value);
-        document.getElementById('message-input').value = '';
+        if (this.props.user) {
+            this.props.sendMessage(document.getElementById('message-input').value);
+            document.getElementById('message-input').value = '';
+        }
     }
 
     render() {
@@ -69,7 +71,7 @@ export default class ChatComponent extends Component {
                     case constants.eventTypes.OUTGOING_MESSAGE: {
                         return (
                             <div key={historyEle.id} className='mt-2 clearfix'>
-                                <div className={'chat-bubble-right py-2 px-3 ' + (historyEle.event.status === constants.messageStatus.SENDING ? 'chat-sending-text' : null)} title={new Date(historyEle.time).toLocaleString('en-CA', timestampOptions) + (historyEle.event.status === constants.messageStatus.SENDING ? ' - Sending' : null)}>
+                                <div className={'chat-bubble-right py-2 px-3 ' + (historyEle.event.status === constants.messageStatus.SENDING ? 'chat-sending-text' : null)} title={new Date(historyEle.time).toLocaleString('en-CA', timestampOptions) + (historyEle.event.status === constants.messageStatus.SENDING ? ' - Sending' : '')}>
                                     {historyEle.event.message}
                                 </div>
                             </div>
@@ -124,8 +126,8 @@ export default class ChatComponent extends Component {
                                     </li>
                                 </ul>
                             ) : (
-                                <h4 className='m-0'>No User Selected</h4>
-                            )
+                                    <h4 className='m-0'>No User Selected</h4>
+                                )
                         }
                     </div>
                     <div className='card-body' id='chat-body-container' style={{ wordBreak: 'break-all', height: this.state.height, overflowY: 'scroll', }}>
