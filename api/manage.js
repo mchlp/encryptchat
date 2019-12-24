@@ -4,7 +4,7 @@ const fs = require('fs');
 const uuidv5 = require('uuidv5');
 const publicServer = require('./server/publicServer.js');
 const Axios = require('axios');
-const soundPlayer = require('play-sound')({});
+const soundPlayer = require('node-wav-player');
 const constants = require('./constants');
 
 const CONTACT_UUID_NAMESPACE = uuidv5('null', 'ENCRYPT_CHAT_CONTACT_UUID_NAMESPACE', true);
@@ -65,6 +65,9 @@ const setPassphrase = async (passphrase) => {
             const encryptedData = fs.readFileSync('./api/data/data', 'utf-8');
             const decipheredtext = util.aes.decrypt(manageData.aesKey, encryptedData);
             manageData.data = JSON.parse(decipheredtext);
+            if (!manageData.data.connectionStringFingerprint) {
+                manageData.data.connectionStringFingerprint = crypto.createHash('sha256').update(manageData.data.connectionString, 'utf8').digest('base64');
+            }
             for (const contactId of Object.keys(manageData.data.contacts)) {
                 manageData.temp.contacts[contactId] = {
                     connected: false,
@@ -78,6 +81,7 @@ const setPassphrase = async (passphrase) => {
                 name: manageData.temp.name
             };
             const connectionString = Buffer.from(JSON.stringify(connectionObj)).toString('base64');
+            const connectionStringFingerprint = crypto.createHash('sha256').update(connectionString, 'utf8').digest('base64');
             const userId = uuidv5(CONTACT_UUID_NAMESPACE, connectionString);
             manageData.data = {
                 contacts: {},
@@ -85,7 +89,8 @@ const setPassphrase = async (passphrase) => {
                 port: manageData.temp.port,
                 name: manageData.temp.name,
                 userId,
-                connectionString
+                connectionString,
+                connectionStringFingerprint
             };
             updateDataFile();
         }
@@ -205,7 +210,6 @@ const establishConnectionFromRequest = async (fromUserId, body) => {
         manageData.passphrase,
         manageData.data.contacts[fromUserId].key
     ));
-    console.log(data);
     if (data.text === constants.text.REQUEST_TO_CONNECT) {
         manageData.data.contacts[fromUserId].address = data.publicAddr;
         manageData.temp.contacts[fromUserId].aesKey = util.aes.genKey();
@@ -396,8 +400,9 @@ const processIncomingPacket = async (fromUserId, type, body) => {
             });
             await socket.updateHistoryOfContact(fromUserId, historyEle.id, 1);
             if (!socket.clientConnected) {
-                soundPlayer.play('./public/ding.mp3', (err) => {
-                    console.error(err);
+                await soundPlayer.play({
+                    path: './public/ding.wav',
+                    sync: true
                 });
             }
             await sendPacketEncrypted(fromUserId, publicServerPacketTypes.MESSAGE_REPLY, body);
@@ -432,6 +437,7 @@ const processIncomingPacket = async (fromUserId, type, body) => {
                     name: connectionData.name,
                     publicKey: connectionData.publicKey,
                     connectionString: body.connectionString,
+                    connectionStringFingerprint: crypto.createHash('sha256').update(body.connectionString, 'utf8').digest('base64'),
                     serverAddr: body.serverAddr
                 });
                 return res.accept;

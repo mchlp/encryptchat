@@ -27,22 +27,27 @@ class StatusDot extends React.Component {
         };
     }
 
-    render() {
-
-        if (this.props.newMessage) {
-            setInterval(() => {
+    componentDidMount() {
+        setInterval(() => {
+            if (this.props.newMessage) {
                 if (this.state.newMessageFlash) {
-                    this.setState({
-                        newMessageFlash: true
-                    });
-                } else {
                     this.setState({
                         newMessageFlash: false
                     });
+                } else {
+                    this.setState({
+                        newMessageFlash: true
+                    });
                 }
-            }, 500);
-        }
+            } else if (this.state.newMessageFlash) {
+                this.setState({
+                    newMessageFlash: false
+                });
+            }
+        }, 500);
+    }
 
+    render() {
         let statusColourCSS;
         if (this.state.newMessageFlash) {
             statusColourCSS = StatusDotColours['new-message'];
@@ -51,7 +56,7 @@ class StatusDot extends React.Component {
         } else {
             statusColourCSS = StatusDotColours['down'];
         }
-        
+
         return (
             <div title={this.props.online ? 'Online' : 'Offline'}>
                 <div style={{ ...StatusDotCSS, ...statusColourCSS }} />

@@ -8,7 +8,7 @@ import constants from '../api/constants';
 let acceptContactRequest;
 let denyContactRequest;
 
-const NOTIFICATION_SOUND_URL = '/ding.mp3';
+const NOTIFICATION_SOUND_URL = '/ding.wav';
 export default class ChatPage extends Component {
 
     constructor(props) {
@@ -34,6 +34,7 @@ export default class ChatPage extends Component {
             contactRequest: {
                 name: '',
                 connectionString: '',
+                connectionStringFingerprint: '',
                 serverAddr: '',
                 publicKey: ''
             }
@@ -76,6 +77,7 @@ export default class ChatPage extends Component {
         if (res.success) {
             this.setState((prevState) => {
                 const newHistory = prevState.data.history;
+                let newMessageUsersUpdated = {};
                 for (const contactId of Object.keys(res.body.history)) {
                     if (!newHistory[contactId]) {
                         newHistory[contactId] = [];
@@ -84,12 +86,7 @@ export default class ChatPage extends Component {
                         const newEvent = res.body.history[contactId][i];
                         if (!newHistory[contactId][newEvent.id] && newEvent.type === constants.eventTypes.INCOMING_MESSAGE) {
                             newMessage = true;
-                            this.setState((prevState) => ({
-                                newMessageUsers: {
-                                    ...prevState.newMessageUsers,
-                                    [contactId]: true
-                                }
-                            }));
+                            newMessageUsersUpdated[contactId] = true;
                         }
                         newHistory[contactId][newEvent.id] = newEvent;
                     }
@@ -98,6 +95,10 @@ export default class ChatPage extends Component {
                     data: {
                         ...prevState.data,
                         history: newHistory
+                    },
+                    newMessageUsers: {
+                        ...prevState.newMessageUsers,
+                        ...newMessageUsersUpdated
                     }
                 };
             }, () => {
@@ -121,7 +122,7 @@ export default class ChatPage extends Component {
                     }
                 });
 
-                this.socket.on('disconnect', res => {
+                this.socket.on('disconnect', () => {
                     this.setState({
                         alert: {
                             show: true,
@@ -140,7 +141,6 @@ export default class ChatPage extends Component {
 
                 this.socket.on('contact-request', async (req, callback) => {
                     const accept = await this.showContactRequest(req);
-                    console.log(accept);
                     callback({
                         accept
                     });
@@ -274,7 +274,7 @@ export default class ChatPage extends Component {
                         <h4 className='mb-1'>
                             <ul className='list-inline m-0 align-middle'>
                                 <li className='list-inline-item ml-1 align-middle'>
-                                    <StatusDot online={contactEntry[1].online} newMessage={this.state.newMessageUsers[contactEntry[0]]}/>
+                                    <StatusDot online={contactEntry[1].online} newMessage={this.state.newMessageUsers[contactEntry[0]]} />
                                 </li>
                                 <li className='list-inline-item ml-1 align-middle'>
                                     {contactEntry[1].name}
@@ -347,10 +347,14 @@ export default class ChatPage extends Component {
                                             <input type='text' className='form-control' id='serverAddr-input' defaultValue={this.state.data.publicAddr} required />
                                             <small id='serverAddr-help' className='form-text text-muted'>This is the URL with the port where your public server is listening. This should not need to be changed unless you started another tunnel.</small>
                                         </div>
+                                        <div className='form-group'>
+                                            <label>Connection String Fingerprint</label>
+                                            <input type='text' readOnly defaultValue={this.state.data.connectionStringFingerprint} className='form-control' />
+                                        </div>
                                     </div>
                                     <div className='modal-footer'>
                                         <button type='button' className='btn btn-secondary' data-dismiss='modal'>Close</button>
-                                        <LoadingButton type='submit' className='btn btn-primary' loading={this.state.addContact.loading.toString()}>Add</LoadingButton>
+                                        <LoadingButton type='submit' className='btn btn-primary' loading={this.state.addContact.loading ? 'true' : undefined}>Add</LoadingButton>
                                     </div>
                                 </form>
                             </div>
@@ -371,6 +375,10 @@ export default class ChatPage extends Component {
                                     <div className='form-group'>
                                         <h4>Connection String</h4>
                                         <textarea readOnly value={this.state.data.connectionString} style={{ fontSize: '10px' }} className='form-control' rows='15' />
+                                    </div>
+                                    <div className='form-group'>
+                                        <h4>Connection String Fingerprint</h4>
+                                        <input readOnly value={this.state.data.connectionStringFingerprint} className='form-control' type='text'></input>
                                     </div>
                                     <div className='form-group'>
                                         <h4>URL</h4>
@@ -399,12 +407,8 @@ export default class ChatPage extends Component {
                                 <div className='modal-body'>
                                     <p>You have received a request from {this.state.contactRequest.name} to connect with you. Please review the details below.</p>
                                     <div className='form-group'>
-                                        <h4>Connection String</h4>
-                                        <textarea readOnly value={this.state.contactRequest.connectionString} style={{ fontSize: '10px' }} className='form-control' rows='10' />
-                                    </div>
-                                    <div className='form-group'>
-                                        <h4>Public Key</h4>
-                                        <textarea readOnly value={this.state.contactRequest.publicKey} style={{ fontSize: '10px' }} className='form-control' rows='10' />
+                                        <h4>Connection String Fingerprint</h4>
+                                        <input type='text' readOnly defaultValue={this.state.contactRequest.connectionStringFingerprint} className='form-control' />
                                     </div>
                                     <div className='form-group'>
                                         <h4>Public Server URL</h4>

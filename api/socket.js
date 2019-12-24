@@ -67,6 +67,7 @@ const init = (io) => {
                     contacts: manage.func.getData().contacts,
                     history,
                     connectionString: manage.func.getConnectionString(),
+                    connectionStringFingerprint: manage.func.getData().connectionStringFingerprint,
                     serverPort: manage.func.getData().port,
                     publicAddr: manage.func.getTemp().publicAddr
                 };
