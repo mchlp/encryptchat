@@ -3,10 +3,12 @@ import io from 'socket.io-client';
 import StatusDot from './StatusDot';
 import ChatComponent from './ChatComponent';
 import LoadingButton from './LoadingButton';
-import Router from 'next/router';
+import constants from '../api/constants';
 
 let acceptContactRequest;
 let denyContactRequest;
+
+const NOTIFICATION_SOUND_URL = '/ding.mp3';
 export default class ChatPage extends Component {
 
     constructor(props) {
@@ -35,6 +37,8 @@ export default class ChatPage extends Component {
                 publicKey: ''
             }
         };
+
+        this.audio = new Audio(NOTIFICATION_SOUND_URL);
     }
 
     updateContacts = (res) => {
@@ -67,6 +71,7 @@ export default class ChatPage extends Component {
     }
 
     updateHistory = (res) => {
+        let newMessage = false;
         if (res.success) {
             this.setState((prevState) => {
                 const newHistory = prevState.data.history;
@@ -76,6 +81,9 @@ export default class ChatPage extends Component {
                     }
                     for (let i = 0; i < res.body.history[contactId].length; i++) {
                         const newEvent = res.body.history[contactId][i];
+                        if (!newHistory[contactId][newEvent.id] && newEvent.type === constants.eventTypes.INCOMING_MESSAGE) {
+                            newMessage = true;
+                        }
                         newHistory[contactId][newEvent.id] = newEvent;
                     }
                 }
@@ -85,6 +93,10 @@ export default class ChatPage extends Component {
                         history: newHistory
                     }
                 };
+            }, () => {
+                if (newMessage) {
+                    this.audio.play();
+                }
             });
         }
     }
@@ -327,7 +339,7 @@ export default class ChatPage extends Component {
                                     </div>
                                     <div className='modal-footer'>
                                         <button type='button' className='btn btn-secondary' data-dismiss='modal'>Close</button>
-                                        <LoadingButton type='submit' className='btn btn-primary' loading={this.state.addContact.loading}>Add</LoadingButton>
+                                        <LoadingButton type='submit' className='btn btn-primary' loading={this.state.addContact.loading.toString()}>Add</LoadingButton>
                                     </div>
                                 </form>
                             </div>
