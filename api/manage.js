@@ -347,12 +347,16 @@ const sendPacketFirst = async (toUserAddr, toUserId, serverAddr) => {
 
 const sendPacketUnencrypted = async (toUserId, type, body) => {
     checkKeysAndPassphraseSet();
+    const config = {};
+    if (type === constants.publicServer.types.CONNECT) {
+        config.timeout = 2000;
+    }
     return await Axios.post(manageData.data.contacts[toUserId].address, {
         type,
         from: manageData.data.userId,
         to: toUserId,
         body
-    });
+    }, config);
 };
 
 const sendPacketEncrypted = async (toUserId, type, body) => {
