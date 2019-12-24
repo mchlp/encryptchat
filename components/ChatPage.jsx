@@ -29,6 +29,7 @@ export default class ChatPage extends Component {
             chat: {
                 selectedUser: null
             },
+            newMessageUsers: {},
             data: {},
             contactRequest: {
                 name: '',
@@ -83,6 +84,12 @@ export default class ChatPage extends Component {
                         const newEvent = res.body.history[contactId][i];
                         if (!newHistory[contactId][newEvent.id] && newEvent.type === constants.eventTypes.INCOMING_MESSAGE) {
                             newMessage = true;
+                            this.setState((prevState) => ({
+                                newMessageUsers: {
+                                    ...prevState.newMessageUsers,
+                                    [contactId]: true
+                                }
+                            }));
                         }
                         newHistory[contactId][newEvent.id] = newEvent;
                     }
@@ -179,6 +186,10 @@ export default class ChatPage extends Component {
             chat: {
                 ...prevState.chat,
                 selectedUser: user
+            },
+            newMessageUsers: {
+                ...prevState.newMessageUsers,
+                [user]: false
             }
         }));
     }
@@ -263,7 +274,7 @@ export default class ChatPage extends Component {
                         <h4 className='mb-1'>
                             <ul className='list-inline m-0 align-middle'>
                                 <li className='list-inline-item ml-1 align-middle'>
-                                    <StatusDot online={contactEntry[1].online} />
+                                    <StatusDot online={contactEntry[1].online} newMessage={this.state.newMessageUsers[contactEntry[0]]}/>
                                 </li>
                                 <li className='list-inline-item ml-1 align-middle'>
                                     {contactEntry[1].name}
