@@ -4,6 +4,7 @@ const fs = require('fs');
 const uuidv5 = require('uuidv5');
 const publicServer = require('./server/publicServer.js');
 const Axios = require('axios');
+const soundPlayer = require('play-sound')({});
 const constants = require('./constants');
 
 const CONTACT_UUID_NAMESPACE = uuidv5('null', 'ENCRYPT_CHAT_CONTACT_UUID_NAMESPACE', true);
@@ -390,6 +391,11 @@ const processIncomingPacket = async (fromUserId, type, body) => {
                 message: body.message
             });
             await socket.updateHistoryOfContact(fromUserId, historyEle.id, 1);
+            if (!socket.clientConnected) {
+                soundPlayer.play('./public/ding.mp3', (err) => {
+                    console.error(err);
+                });
+            }
             await sendPacketEncrypted(fromUserId, publicServerPacketTypes.MESSAGE_REPLY, body);
             return;
         }

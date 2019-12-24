@@ -99,4 +99,4 @@ const init = (io) => {
     });
 };
 
-module.exports = { init, updateHistoryOfContact, showContactRequest, updateContacts };
+module.exports = { init, updateHistoryOfContact, showContactRequest, updateContacts, clientConnected };
