@@ -88,7 +88,7 @@ class NewPassphrase extends React.Component {
                             <div className='input-group-prepend'>
                                 <span className='input-group-text'>Port</span>
                             </div>
-                            <input id='port-input' type='number' className='form-control' placeholder='Port' min='0' required />
+                            <input id='port-input' type='number' className='form-control' placeholder='Port' min='0' value='4001' required />
                         </div>
                         <LoadingButton type='submit' className='btn btn-primary' loading={this.state.submitBtnLoading ? 1 : undefined}>Generate Keys</LoadingButton>
                     </form>

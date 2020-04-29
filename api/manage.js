@@ -554,7 +554,7 @@ func.handleAddContact = async (data) => {
     if (!data.url) {
         throw Error('URL of new contact required.');
     }
-    const connectionData = JSON.parse(Buffer.from(data.connectionString, 'base64').toString());
+    const connectionData = JSON.parse(Buffer.from(data.connectionString, 'base64').toString().trim());
     try {
         crypto.publicEncrypt(connectionData.publicKey, Buffer.from('testdata', 'utf-8'));
     } catch (err) {
