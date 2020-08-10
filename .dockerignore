@@ -1,0 +1,6 @@
+node_modules
+npm-debug.log
+/api/data/aes
+/api/data/data
+/api/data/key
+/api/data/key.pub

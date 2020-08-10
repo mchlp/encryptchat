@@ -274,7 +274,7 @@ export default class ChatPage extends Component {
                         <h4 className='mb-1'>
                             <ul className='list-inline m-0 align-middle'>
                                 <li className='list-inline-item ml-1 align-middle'>
-                                    <StatusDot online={contactEntry[1].online} newMessage={this.state.newMessageUsers[contactEntry[0]]} />
+                                    <StatusDot online={contactEntry[1].online} newMessage={this.state.newMessageUsers[contactEntry[0]] && this.state.chat.selectedUser !== contactEntry[0]} />
                                 </li>
                                 <li className='list-inline-item ml-1 align-middle'>
                                     {contactEntry[1].name}
@@ -330,21 +330,23 @@ export default class ChatPage extends Component {
                                 </div>
                                 <form onSubmit={this.addContact}>
                                     <div className='modal-body'>
+                                        <h5>Contact&apos;s Information</h5>
                                         <div className='alert alert-danger mb-3' id='danger-alert' hidden={!this.state.addContact.alert.show}>
                                             {this.state.addContact.alert.text}
                                         </div>
                                         <div className='form-group'>
-                                            <label htmlFor='connection-string-input'>Connection String</label>
+                                            <label htmlFor='connection-string-input'>Contact&apos;s Connection String</label>
                                             <textarea style={{ fontSize: '10px' }} className='form-control' id='connection-string-input' rows='10' required />
                                         </div>
                                         <div className='form-group'>
-                                            <label htmlFor='url-input'>URL</label>
+                                            <label htmlFor='url-input'>Contact&apos;s Public URL</label>
                                             <input type='text' className='form-control' id='url-input' required />
-                                            <small id='url-help' className='form-text text-muted'>This is the URL with the port where the public server of the other user is listening.</small>
+                                            {/* <small id='url-help' className='form-text text-muted'>This is the URL with the port where the public server of the other user is listening.</small> */}
                                         </div>
+                                        <h5>My Information (to Verify with Contact)</h5>
                                         <div className='form-group'>
                                             <label htmlFor='serverAddr-input'>My Public Server URL</label>
-                                            <input type='text' className='form-control' id='serverAddr-input' defaultValue={this.state.data.publicAddr} required />
+                                            <input type='text' className='form-control' readOnly id='serverAddr-input' defaultValue={this.state.data.publicAddr} required />
                                             <small id='serverAddr-help' className='form-text text-muted'>This is the URL with the port where your public server is listening. This should not need to be changed unless you started another tunnel.</small>
                                         </div>
                                         <div className='form-group'>
@@ -381,10 +383,10 @@ export default class ChatPage extends Component {
                                         <input readOnly value={this.state.data.connectionStringFingerprint} className='form-control' type='text'></input>
                                     </div>
                                     <div className='form-group'>
-                                        <h4>URL</h4>
-                                        <p>Publicly accessible URL (including port) where public server is listening</p>
+                                        <h4>Public URL</h4>
+                                        {/* <p>Publicly accessible URL (including port) where public server is listening</p> */}
                                         <input readOnly value={this.state.data.publicAddr} className='form-control' type='text'></input>
-                                        <small id='url-help' className='form-text text-muted'>This should be your publicly accessible URL unless you started another tunnel.</small>
+                                        {/* <small id='url-help' className='form-text text-muted'>This should be your publicly accessible URL unless you started another tunnel.</small> */}
                                     </div>
                                 </div>
                                 <div className='modal-footer'>

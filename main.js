@@ -23,9 +23,9 @@ app.prepare().then(async () => {
         return handle(req, res);
     });
 
-    const server = app.listen(config['api-port'], 'localhost', (err) => {
+    const server = app.listen(config['api-port'], (err) => {
         if (err) throw err;
-        console.log('Private API listening on localhost:' + config['api-port']);
+        console.log('Private API listening on port ' + config['api-port']);
     });
 
     const io = socketIO(server);

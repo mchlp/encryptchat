@@ -45,10 +45,6 @@
             "always"
         ],
         "react/prop-types": 0,
-        "jsx-quotes": [
-            "error",
-            "prefer-single"
-        ],
         "require-atomic-updates": "warn"
     }
 }
