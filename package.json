@@ -11,7 +11,7 @@
   "dependencies": {
     "axios": "^0.19.2",
     "express": "^4.17.1",
-    "next": "^9.5.1",
+    "next": "^9.5.4",
     "ngrok": "^3.2.7",
     "node-wav-player": "^0.1.0",
     "react": "16.12.0",
