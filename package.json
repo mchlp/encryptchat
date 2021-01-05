@@ -9,7 +9,7 @@
     "demo": "npm install && npm run dev"
   },
   "dependencies": {
-    "axios": "^0.19.2",
+    "axios": "^0.21.1",
     "express": "^4.17.1",
     "next": "^9.5.1",
     "ngrok": "^3.2.7",
