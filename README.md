@@ -3,9 +3,7 @@
 - Docker
 
 ## How to Run
-1. Clone the repository
-2. Run `docker build -t encrypt-chat .` to build the Docker container
-3. Run `docker run -p 4000:4000 --restart=on-failure --mount type=bind,source="$(pwd)/api/data",target=/app/api/data encrypt-chat` to start the Docker container
+1. Run `docker run -p 4000:4000 mchlp94/encryptchat` to fetch, build, and run the Docker container
 
 ## How to Use
 1. Start the server by following the steps in [How to Run](##How-to-Run)
