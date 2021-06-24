@@ -26,6 +26,9 @@ This is an Express server where other users will be sending their packets which 
 #### 3. Web Interface
 This is where the current user interacts with the program. Created using Next.js and React, the web interface allows users to add contacts, view their information, as well as chat with other users by opening the page in their browser.
 
+![Diagram of Components](./docs/diagram.png "Diagram of Components")
+
+
 ### Encryption
 All of the data associated with the program is stored locally in an encrypted format so that the only place where your sensitive data will be in plaintext is within the program itself.
 
