@@ -7,7 +7,7 @@ RUN apk add alsa-utils alsa-lib alsaconf
 
 COPY package*.json ./
 
-RUN npm install --production
+RUN npm install
 
 COPY . /app
 
