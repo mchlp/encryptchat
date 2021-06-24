@@ -9,12 +9,12 @@
     "demo": "npm install && npm run dev"
   },
   "dependencies": {
-    "axios": "^0.19.2",
+    "axios": "^0.21.1",
     "express": "^4.17.1",
-    "next": "^9.5.1",
+    "next": "^11.0.1",
     "ngrok": "^3.2.7",
     "node-wav-player": "^0.1.0",
-    "react": "16.12.0",
+    "react": "^17.0.2",
     "react-dom": "16.12.0",
     "socket.io": "^2.3.0",
     "socket.io-client": "^2.3.0",

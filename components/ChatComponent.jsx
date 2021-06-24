@@ -5,8 +5,6 @@ import constants from '../api/constants';
 const timestampOptions = {
     dateStyle: 'full',
     timeStyle: 'long',
-    weekday: 'short',
-    month: 'short',
     hour12: true
 };
 export default class ChatComponent extends Component {
